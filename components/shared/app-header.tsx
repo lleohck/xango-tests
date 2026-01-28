@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, LogOut, Moon, Sun, User as UserIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { ModeToggle } from "@/components/shared/toogle-theme-mode";
+import { useTheme } from "next-themes";
 
 type NavItem = { label: string; href: string };
 
@@ -38,6 +38,7 @@ export default function AppHeader({
   menus?: [NavItem, NavItem];
 }) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
 
   const userName = session?.user?.name ?? "Usuário";
@@ -55,7 +56,6 @@ export default function AppHeader({
   }, [userName]);
 
   function isActive(href: string) {
-    // trata "/" e highlights por prefixo (ex: /operacoes/123 continua ativo em /operacoes)
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(href + "/");
   }
@@ -63,7 +63,6 @@ export default function AppHeader({
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
       <div className="mx-auto flex h-14 max-w-6xl items-center px-4">
-        {/* Left: Logo */}
         <Link href={logoHref} className="flex items-center gap-2">
           <Image
             src={logoSrc}
@@ -77,7 +76,6 @@ export default function AppHeader({
           </span>
         </Link>
 
-        {/* Center: Menus */}
         <nav className="flex flex-1 items-center justify-center gap-1">
           {menus.map((item) => {
             const active = isActive(item.href);
@@ -99,7 +97,6 @@ export default function AppHeader({
           })}
         </nav>
 
-        {/* Right: User */}
         <div className="flex items-center gap-2">
           <div className="hidden text-right sm:block">
             <div className="text-sm font-medium leading-none">
@@ -139,8 +136,13 @@ export default function AppHeader({
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <ModeToggle />
+              <DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  {theme === "dark" ? <Sun /> : <Moon />}
+                  {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+                </DropdownMenuItem>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

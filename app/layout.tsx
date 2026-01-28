@@ -24,8 +24,8 @@ export default function RootLayout({
               appName="Xango API Testing"
               logoSrc="/logo.png"
               menus={[
-                { label: "Consulta Unica", href: "/" },
-                { label: "Processamento em Lote", href: "/p" },
+                { label: "Consulta Unica", href: "/unique" },
+                { label: "Processamento em Lote", href: "/batch" },
               ]}
             />
             <main>{children}</main>
