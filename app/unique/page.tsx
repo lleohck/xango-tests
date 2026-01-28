@@ -20,6 +20,10 @@ import { Badge } from "@/components/ui/badge";
 
 type Environment = "DEV" | "UAT" | "PRD";
 type ApiType = "ci-data" | "bi-data";
+type LastQuery = ApiTestFormData & {
+  environment: Environment;
+  apiType: ApiType;
+};
 
 const environments: Array<{
   value: Environment;
@@ -56,8 +60,10 @@ export default function UniqueTest() {
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [apiType, setApiType] = useState<ApiType>("ci-data");
   const [apiResponse, setApiResponse] = useState<unknown>(null);
+  const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
 
   const handleApiTest = (formData: ApiTestFormData) => {
+    setLastQuery({ ...formData, environment, apiType });
     // Mock API response
     const mockResponse = {
       status: "success",
@@ -76,12 +82,6 @@ export default function UniqueTest() {
           confidence: (Math.random() * 100).toFixed(2) + "%",
           processing_time_ms: Math.floor(Math.random() * 1000),
           model_version: formData.version,
-          features_used: 42,
-          risk_factors: [
-            { name: "credit_history", impact: 0.35 },
-            { name: "income_ratio", impact: 0.28 },
-            { name: "debt_level", impact: 0.22 },
-          ],
         },
       },
     };
@@ -93,7 +93,7 @@ export default function UniqueTest() {
     environments.find((item) => item.value === environment) ?? environments[0];
 
   return (
-    <div className="min-h-[calc(100svh-5rem)] bg-background px-6 py-10">
+    <div className="min-h-[calc(100svh-5rem)] bg-background px-6 py-5">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -104,99 +104,142 @@ export default function UniqueTest() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuração de Ambiente</CardTitle>
-            <CardDescription>
-              Selecione o ambiente e a API que deseja testar
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="environment">Ambiente</Label>
-                <Select
-                  value={environment}
-                  onValueChange={(value) =>
-                    setEnvironment(value as Environment)
-                  }
-                >
-                  <SelectTrigger id="environment">
-                    <SelectValue placeholder="Selecione um ambiente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {environments.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`h-2 w-2 rounded-full ${item.dotClass}`}
-                          />
-                          <span className="font-medium">{item.label}</span>
-                          <span className="text-muted-foreground">
-                            - {item.description}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuração de Ambiente</CardTitle>
+                <CardDescription>
+                  Selecione o ambiente e a API que deseja testar
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="environment">Ambiente</Label>
+                    <Select
+                      value={environment}
+                      onValueChange={(value) =>
+                        setEnvironment(value as Environment)
+                      }
+                    >
+                      <SelectTrigger id="environment" className="w-full">
+                        <SelectValue placeholder="Selecione um ambiente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {environments.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`h-2 w-2 rounded-full ${item.dotClass}`}
+                              />
+                              <span className="font-medium">{item.label}</span>
+                              <span className="text-muted-foreground">
+                                - {item.description}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="api">API</Label>
-                <Select
-                  value={apiType}
-                  onValueChange={(value) => setApiType(value as ApiType)}
-                >
-                  <SelectTrigger id="api">
-                    <SelectValue placeholder="Selecione a API" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apiOptions.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="api">API</Label>
+                    <Select
+                      value={apiType}
+                      onValueChange={(value) => setApiType(value as ApiType)}
+                    >
+                      <SelectTrigger id="api" className="w-full">
+                        <SelectValue placeholder="Selecione a API" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {apiOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                Conectado em:
-              </span>
-              <Badge variant="outline" className="gap-2">
-                <div
-                  className={`h-2 w-2 rounded-full ${currentEnvironment.dotClass}`}
-                />
-                {currentEnvironment.label}
-              </Badge>
-              <span className="text-sm text-muted-foreground">•</span>
-              <Badge variant="outline">{apiType}</Badge>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Conectado em:
+                  </span>
+                  <Badge variant="outline" className="gap-2">
+                    <div
+                      className={`h-2 w-2 rounded-full ${currentEnvironment.dotClass}`}
+                    />
+                    {currentEnvironment.label}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">•</span>
+                  <Badge variant="outline">{apiType}</Badge>
+                </div>
+              </CardContent>
+            </Card>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <ApiTestForm onSubmit={handleApiTest} />
+            <ApiTestForm onSubmit={handleApiTest} />
+          </div>
 
-          <Card className="h-fit">
+          <Card className="flex h-full flex-col">
             <CardHeader>
               <CardTitle>Resultado da Consulta</CardTitle>
               <CardDescription>
                 Resposta JSON retornada pela API
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-1 flex-col gap-4">
+              <div className="space-y-2">
+                {lastQuery && (
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="gap-2">
+                      <div
+                        className={`h-2 w-2 rounded-full ${currentEnvironment.dotClass}`}
+                      />
+                      {currentEnvironment.label}
+                    </Badge>
+                    <Badge variant="outline">{lastQuery.apiType}</Badge>
+                    <Badge variant="outline">{lastQuery.modelo}</Badge>
+                    <Badge variant="outline">{lastQuery.ndoc}</Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lastQuery.explainer
+                          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                          : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                      }
+                    >
+                      explainer
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lastQuery.is_canary
+                          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                          : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                      }
+                    >
+                      canary
+                    </Badge>
+                    <Badge variant="outline" className="bg-muted/30">
+                      {lastQuery.version}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
               {apiResponse ? (
-                <div className="max-h-[600px] overflow-auto rounded-lg border border-border/70 bg-muted/40 p-4">
-                  <pre className="text-xs font-mono leading-relaxed text-foreground">
-                    {JSON.stringify(apiResponse, null, 2)}
-                  </pre>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex-1 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-4">
+                    <pre className="text-xs font-mono leading-relaxed text-foreground">
+                      {JSON.stringify(apiResponse, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
                   <div className="mb-4 rounded-full bg-muted p-3">
                     <svg
                       className="h-6 w-6 text-muted-foreground"
