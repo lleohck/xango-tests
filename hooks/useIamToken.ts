@@ -44,14 +44,17 @@ export function useIamToken(environment: Environment) {
       }
 
       const data = await res.json();
+      const accessToken = data?.accessToken ?? null;
       setState({
-        accessToken: data?.accessToken ?? null,
+        accessToken,
         loading: false,
         error: null,
       });
+      return accessToken;
     } catch (err: any) {
-      if (err?.name === 'AbortError') return;
+      if (err?.name === 'AbortError') return null;
       setState({ accessToken: null, loading: false, error: err?.message ?? 'Erro' });
+      return null;
     }
   }, [environment]);
 
@@ -60,9 +63,7 @@ export function useIamToken(environment: Environment) {
     return () => abortRef.current?.abort();
   }, [fetchToken]);
 
-  const refresh = useCallback(() => {
-    void fetchToken({ forceRefresh: true });
-  }, [fetchToken]);
+  const refresh = useCallback(() => fetchToken({ forceRefresh: true }), [fetchToken]);
 
   return useMemo(() => ({ ...state, refresh }), [state, refresh]);
 }

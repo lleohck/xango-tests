@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiTestForm, type ApiTestFormData } from "@/components/ApiTestForm";
 import {
   Card,
@@ -19,13 +19,41 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import AppHeader from "@/components/shared/app-header";
 import { toast } from "sonner";
+import { useIamToken, type Environment } from "@/hooks/useIamToken";
 
-type Environment = "DEV" | "UAT" | "PRD";
 type ApiType = "ci-data" | "bi-data";
 type LastQuery = ApiTestFormData & {
   environment: Environment;
   apiType: ApiType;
 };
+
+const API_URLS: Record<ApiType, Record<Environment, string | undefined>> = {
+  "ci-data": {
+    DEV:
+      process.env.NEXT_PUBLIC_API_CI_DATA_DEV_URL ??
+      process.env.API_CI_DATA_DEV_URL,
+    UAT:
+      process.env.NEXT_PUBLIC_API_CI_DATA_UAT_URL ??
+      process.env.API_CI_DATA_UAT_URL,
+    PRD:
+      process.env.NEXT_PUBLIC_API_CI_DATA_PRD_URL ??
+      process.env.API_CI_DATA_PRD_URL,
+  },
+  "bi-data": {
+    DEV:
+      process.env.NEXT_PUBLIC_API_BI_DATA_DEV_URL ??
+      process.env.API_BI_DATA_DEV_URL,
+    UAT:
+      process.env.NEXT_PUBLIC_API_BI_DATA_UAT_URL ??
+      process.env.API_BI_DATA_UAT_URL,
+    PRD:
+      process.env.NEXT_PUBLIC_API_BI_DATA_PRD_URL ??
+      process.env.API_BI_DATA_PRD_URL,
+  },
+};
+
+const getApiUrl = (apiType: ApiType, environment: Environment) =>
+  API_URLS[apiType]?.[environment];
 
 const environments: Array<{
   value: Environment;
@@ -62,37 +90,97 @@ export default function UniqueTest() {
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [apiType, setApiType] = useState<ApiType>("ci-data");
   const [apiResponse, setApiResponse] = useState<unknown>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
+  const apiAbortRef = useRef<AbortController | null>(null);
 
-  const handleApiTest = (formData: ApiTestFormData) => {
+  const { accessToken, error: iamError, refresh } = useIamToken(environment);
+
+  useEffect(() => () => apiAbortRef.current?.abort(), []);
+
+  const handleApiTest = async (formData: ApiTestFormData) => {
     setLastQuery({ ...formData, environment, apiType });
-    // Mock API response
-    const mockResponse = {
-      status: "success",
-      timestamp: new Date().toISOString(),
-      environment: environment,
-      api: apiType,
-      data: {
-        modelo: formData.modelo,
-        ndoc: formData.ndoc,
-        explainer: formData.explainer,
-        version: formData.version,
-        is_canary: formData.is_canary,
-        result: {
-          score: Math.random().toFixed(4),
-          prediction: Math.random() > 0.5 ? "approved" : "rejected",
-          confidence: (Math.random() * 100).toFixed(2) + "%",
-          processing_time_ms: Math.floor(Math.random() * 1000),
-          model_version: formData.version,
-        },
-      },
-    };
+    setApiLoading(true);
+    setApiError(null);
+    setApiResponse(null);
 
-    setApiResponse(mockResponse);
-    const toastResponse = `${formData.modelo} | ${formData.ndoc} -> Score: ${mockResponse.data.result.score}`;
-    toast.success("Consultado com Sucesso!", {
-      description: toastResponse,
-    });
+    apiAbortRef.current?.abort();
+    const ac = new AbortController();
+    apiAbortRef.current = ac;
+    const isCurrentRequest = () => apiAbortRef.current === ac;
+
+    const apiUrl = getApiUrl(apiType, environment);
+    if (!apiUrl) {
+      const message = `URL da API não configurada para ${apiType}/${environment}.`;
+      if (isCurrentRequest()) {
+        setApiError(message);
+        setApiResponse({ error: message });
+        setApiLoading(false);
+      }
+      toast.error("Configuração ausente", { description: message });
+      return;
+    }
+
+    const token = accessToken ?? (await refresh());
+    if (!token) {
+      const message = iamError ?? "Token IAM indisponível.";
+      if (isCurrentRequest()) {
+        setApiError(message);
+        setApiResponse({ error: message });
+        setApiLoading(false);
+      }
+      toast.error("Erro de autenticação", { description: message });
+      return;
+    }
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+        signal: ac.signal,
+        cache: "no-store",
+      });
+
+      const text = await res.text();
+      let payload: unknown = text;
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch {
+          payload = text;
+        }
+      }
+
+      if (!res.ok) {
+        const message =
+          (payload as { error?: string })?.error ??
+          text ??
+          `Falha na API (${res.status})`;
+        throw new Error(message);
+      }
+
+      if (isCurrentRequest()) {
+        setApiResponse(payload ?? { ok: true });
+        toast.success("Consultado com Sucesso!", {
+          description: `${formData.modelo} | ${formData.ndoc}`,
+        });
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      const message = err?.message ?? "Erro ao consultar API";
+      if (isCurrentRequest()) {
+        setApiError(message);
+        setApiResponse({ error: message });
+        toast.error("Erro na consulta", { description: message });
+      }
+    } finally {
+      if (isCurrentRequest()) setApiLoading(false);
+    }
   };
 
   const currentEnvironment =
@@ -248,7 +336,14 @@ export default function UniqueTest() {
                   )}
                 </div>
 
-                {apiResponse ? (
+                {apiLoading ? (
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
+                    <div className="mb-3 h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Consultando API...
+                    </p>
+                  </div>
+                ) : apiResponse ? (
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="flex-1 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-4">
                       <pre className="text-xs font-mono leading-relaxed text-foreground">
@@ -274,7 +369,9 @@ export default function UniqueTest() {
                       </svg>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Nenhuma consulta realizada ainda
+                      {apiError
+                        ? "Falha na consulta. Verifique o erro e tente novamente."
+                        : "Nenhuma consulta realizada ainda"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Preencha o formulário e clique em "Executar Teste" para
