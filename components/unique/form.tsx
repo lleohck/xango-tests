@@ -90,7 +90,7 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Consulta de Modelo</CardTitle>
+        <CardTitle>Parametrização da Chamada</CardTitle>
         <CardDescription>
           Preencha os parâmetros para testar a API
         </CardDescription>
