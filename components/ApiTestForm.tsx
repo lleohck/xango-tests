@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import SwitchChoiceCard from "./ui/switch-choice-card";
+import SwitchChoiceCard from "../ui/switch-choice-card";
 
 export type ApiTestFormData = {
   modelo: string;
@@ -149,9 +149,7 @@ export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
               description="Usa a rota canary para validações controladas."
               id="is-canary"
               checked={formData.is_canary}
-              onCheckedChange={(checked) =>
-                handleChange("is_canary", checked)
-              }
+              onCheckedChange={(checked) => handleChange("is_canary", checked)}
             />
           </div>
 

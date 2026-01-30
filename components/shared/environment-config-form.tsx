@@ -46,8 +46,8 @@ export const environments: Array<EnvironmentConfig> = [
 
 type ApiType = "ci-data" | "bi-data";
 const apiOptions: Array<{ value: ApiType; label: string }> = [
-  { value: "ci-data", label: "ci-data" },
   { value: "bi-data", label: "bi-data" },
+  { value: "ci-data", label: "ci-data" },
 ];
 
 type EnvironmentConfigFormProps = {

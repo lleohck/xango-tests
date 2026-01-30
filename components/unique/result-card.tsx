@@ -9,11 +9,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EnvironmentConfig } from "../shared/environment-config-form";
 import { ApiType, Environment } from "@/types/shared";
-import { ApiTestFormData } from "../ApiTestForm";
+import { UniqueTestFormData } from "./form";
 
 type UniqueResultCardProps = {
   lastQuery:
-    | (ApiTestFormData & {
+    | (UniqueTestFormData & {
         environment: Environment;
         apiType: ApiType;
         currentEnvironment: EnvironmentConfig;
@@ -45,29 +45,33 @@ export default function UniqueResultCard({
               <Badge variant="outline">{lastQuery.apiType}</Badge>
               <Badge variant="outline">{lastQuery.modelo}</Badge>
               <Badge variant="outline">{lastQuery.ndoc}</Badge>
-              <Badge
-                variant="outline"
-                className={
-                  lastQuery.explainer
-                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                }
-              >
-                explainer
-              </Badge>
-              <Badge
-                variant="outline"
-                className={
-                  lastQuery.is_canary
-                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                }
-              >
-                canary
-              </Badge>
-              <Badge variant="outline" className="bg-muted/30">
-                {lastQuery.version}
-              </Badge>
+              {lastQuery.apiType === "bi-data" && lastQuery.forms["bi-data"] && (
+                <>
+                  <Badge
+                    variant="outline"
+                    className={
+                      lastQuery.forms["bi-data"].explainer
+                        ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                    }
+                  >
+                    explainer
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={
+                      lastQuery.forms["bi-data"].is_canary
+                        ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                    }
+                  >
+                    canary
+                  </Badge>
+                  <Badge variant="outline" className="bg-muted/30">
+                    {lastQuery.forms["bi-data"].version}
+                  </Badge>
+                </>
+              )}
             </div>
           )}
         </div>
