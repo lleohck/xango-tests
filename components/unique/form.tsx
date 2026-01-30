@@ -132,6 +132,7 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
 
           {apiName === "bi-data" && (
             <BiDataParamsForm
+              version="unique"
               formData={biDataParams}
               setFormData={(
                 field: keyof BiDataParamsFormData,

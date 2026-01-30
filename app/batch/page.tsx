@@ -1,57 +1,68 @@
 "use client";
 import { useState } from "react";
-import { ApiTestForm, type ApiTestFormData } from "@/components/unique/form";
 
 import AppHeader from "@/components/shared/app-header";
 import EnvironmentConfigForm, {
   EnvironmentConfig,
   environments,
 } from "@/components/shared/environment-config-form";
-import UniqueResultCard from "@/components/unique/result-card";
 import { ApiType, Environment } from "@/types/shared";
-import { Card } from "@/components/ui/card";
-import BiDataParamsForm from "@/components/shared/apis/bi-data-params-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import BiDataParamsForm, {
+  BiDataParamsFormData,
+} from "@/components/shared/apis/bi-data-params-form";
 
-type LastQuery = ApiTestFormData & {
-  environment: Environment;
-  apiType: ApiType;
-  currentEnvironment: EnvironmentConfig;
+type BatchTestFormData = {
+  forms: {
+    "bi-data"?: BiDataParamsFormData;
+  };
 };
 
-export default function UniqueTest() {
+const defaultBiDataParams: BiDataParamsFormData = {
+  version: "v2",
+  explainer: false,
+  is_canary: false,
+};
+
+export default function BatchTest() {
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [currentEnvironment, setCurrentEnvironment] =
     useState<EnvironmentConfig>(environments[0]);
-  const [apiType, setApiType] = useState<ApiType>("ci-data");
-  const [apiResponse, setApiResponse] = useState<unknown>(null);
-  const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
 
-  const handleApiTest = (formData: ApiTestFormData) => {
-    setLastQuery({ ...formData, environment, apiType, currentEnvironment });
-    // Mock API response
-    const mockResponse = {
-      status: "success",
-      timestamp: new Date().toISOString(),
-      environment: environment,
-      api: apiType,
-      data: {
-        modelo: formData.modelo,
-        ndoc: formData.ndoc,
-        explainer: formData.explainer,
-        version: formData.version,
-        is_canary: formData.is_canary,
-        result: {
-          score: Math.random().toFixed(4),
-          prediction: Math.random() > 0.5 ? "approved" : "rejected",
-          confidence: (Math.random() * 100).toFixed(2) + "%",
-          processing_time_ms: Math.floor(Math.random() * 1000),
-          model_version: formData.version,
+  const [formData, setFormData] = useState<BatchTestFormData>({
+    forms: {
+      "bi-data": defaultBiDataParams,
+    },
+  });
+
+  const [apiType, setApiType] = useState<ApiType>("bi-data");
+
+  const handleBiDataChange = <K extends keyof BiDataParamsFormData>(
+    field: K,
+    value: BiDataParamsFormData[K],
+  ) => {
+    setFormData((prev) => {
+      const currentParams = prev.forms["bi-data"] ?? defaultBiDataParams;
+      return {
+        ...prev,
+        forms: {
+          ...prev.forms,
+          "bi-data": {
+            ...currentParams,
+            [field]: value,
+          },
         },
-      },
-    };
-
-    setApiResponse(mockResponse);
+      };
+    });
   };
+
+  const biDataParams = formData.forms["bi-data"] ?? defaultBiDataParams;
 
   return (
     <div>
@@ -75,8 +86,8 @@ export default function UniqueTest() {
             </p>
           </div>
 
-          <div className="flex flex-row gap-4">
-            <div className="max-w-1/2">
+          <div className="grid items-stretch gap-4 lg:grid-cols-2">
+            <div className="h-full w-full">
               <EnvironmentConfigForm
                 environment={environment}
                 setEnvironment={setEnvironment}
@@ -84,10 +95,28 @@ export default function UniqueTest() {
                 setApiType={setApiType}
                 currentEnvironment={currentEnvironment}
                 setCurrentEnvironment={setCurrentEnvironment}
+                className="h-full"
               />
             </div>
-            <div className="max-w-1/2">
-              <BiDataParamsForm />
+            <div className="h-full w-full">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>Parametrização da Chamada</CardTitle>
+                  <CardDescription>
+                    Preencha os parâmetros para testar a API
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BiDataParamsForm
+                    version="batch"
+                    formData={biDataParams}
+                    setFormData={(
+                      field: keyof BiDataParamsFormData,
+                      value: BiDataParamsFormData[keyof BiDataParamsFormData],
+                    ) => handleBiDataChange(field, value)}
+                  />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

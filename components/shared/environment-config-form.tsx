@@ -57,6 +57,7 @@ type EnvironmentConfigFormProps = {
   setApiType: (api: ApiType) => void;
   currentEnvironment: (typeof environments)[0];
   setCurrentEnvironment?: (env: (typeof environments)[0]) => void;
+  className?: string;
 };
 
 export default function EnvironmentConfigForm({
@@ -66,6 +67,7 @@ export default function EnvironmentConfigForm({
   setApiType,
   currentEnvironment,
   setCurrentEnvironment,
+  className,
 }: EnvironmentConfigFormProps) {
   const handleEnvironmentChange = (env: Environment) => {
     setEnvironment(env);
@@ -77,14 +79,14 @@ export default function EnvironmentConfigForm({
   };
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Configuração de Ambiente</CardTitle>
         <CardDescription>
           Selecione o ambiente e a API que deseja testar
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex h-full flex-col gap-4">
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="environment">Ambiente</Label>
@@ -135,7 +137,7 @@ export default function EnvironmentConfigForm({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-auto flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Conectado em:</span>
           <Badge variant="outline" className="gap-2">
             <div

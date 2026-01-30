@@ -1,6 +1,6 @@
-import SwitchChoiceCard from "@/components/ui/switch-choice-card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import SwitchChoiceCard from "@/components/ui/switch-choice-card";
 
 export type BiDataParamsFormData = {
   version: "v2" | "v3";
@@ -9,11 +9,16 @@ export type BiDataParamsFormData = {
 };
 
 type BiDataParamsFormProps = {
+  version: "unique" | "batch";
   formData: BiDataParamsFormData;
-  setFormData: (field: keyof BiDataParamsFormData, value: BiDataParamsFormData[keyof BiDataParamsFormData]) => void;
+  setFormData: (
+    field: keyof BiDataParamsFormData,
+    value: BiDataParamsFormData[keyof BiDataParamsFormData],
+  ) => void;
 };
 
 export default function BiDataParamsForm({
+  version,
   formData,
   setFormData,
 }: BiDataParamsFormProps) {
@@ -24,7 +29,7 @@ export default function BiDataParamsForm({
     setFormData(field, value);
   };
 
-  return (
+  const unique = (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
         <div className="space-y-1">
@@ -78,4 +83,64 @@ export default function BiDataParamsForm({
       />
     </div>
   );
+
+  const batch = (
+    <div className="grid gap-3 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="version">Versão do modelo</Label>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className={
+              formData.version === "v2"
+                ? "text-sm font-medium text-foreground"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            v2
+          </span>
+          <Switch
+            id="version"
+            checked={formData.version === "v3"}
+            onCheckedChange={(checked) =>
+              handleChange("version", checked ? "v3" : "v2")
+            }
+            aria-label="Alternar versão do modelo"
+          />
+          <span
+            className={
+              formData.version === "v3"
+                ? "text-sm font-medium text-foreground"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            v3
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <SwitchChoiceCard
+          title="Explainer"
+          id="explainer"
+          checked={formData.explainer}
+          onCheckedChange={(checked) => handleChange("explainer", checked)}
+        />
+        <SwitchChoiceCard
+          title="Is Canary"
+          id="is-canary"
+          checked={formData.is_canary}
+          onCheckedChange={(checked) => handleChange("is_canary", checked)}
+        />
+      </div>
+    </div>
+  );
+
+  if (version === "unique") {
+    return unique;
+  }
+
+  if (version === "batch") {
+    return batch;
+  }
 }

@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 type SwitchChoiceCardProps = {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 };
@@ -29,7 +29,7 @@ export function SwitchChoiceCard({
         <Field orientation="horizontal">
           <FieldContent>
             <FieldTitle>{title}</FieldTitle>
-            <FieldDescription>{description}</FieldDescription>
+            {description && <FieldDescription>{description}</FieldDescription>}
           </FieldContent>
           <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
         </Field>
