@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import SwitchChoiceCard from "./ui/switch-choice-card";
 
 export type ApiTestFormData = {
   modelo: string;
@@ -31,13 +32,7 @@ interface ApiTestFormProps {
   onSubmit: (data: ApiTestFormData) => void;
 }
 
-const modelos = [
-  "hvo1",
-  "hvld",
-  "hrle",
-  "hspn",
-  "hgc2",
-];
+const modelos = ["hvo1", "hvld", "hrle", "hspn", "hgc2"];
 
 export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
   const [formData, setFormData] = useState<ApiTestFormData>({
@@ -55,7 +50,7 @@ export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
 
   const handleChange = <K extends keyof ApiTestFormData>(
     field: K,
-    value: ApiTestFormData[K]
+    value: ApiTestFormData[K],
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -79,7 +74,7 @@ export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
                 value={formData.modelo}
                 onValueChange={(value) => handleChange("modelo", value)}
               >
-                <SelectTrigger id="modelo">
+                <SelectTrigger id="modelo" className="w-full">
                   <SelectValue placeholder="Selecione um modelo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -100,27 +95,12 @@ export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
                 placeholder="Ex: 12345678900"
                 value={formData.ndoc}
                 onChange={(e) => handleChange("ndoc", e.target.value)}
+                className="w-full"
               />
             </div>
           </div>
 
           <div className="grid gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
-              <div className="space-y-1">
-                <Label htmlFor="explainer">Explainer</Label>
-                <p className="text-sm text-muted-foreground">
-                  Inclui detalhes explicativos na resposta.
-                </p>
-              </div>
-              <Switch
-                id="explainer"
-                checked={formData.explainer}
-                onCheckedChange={(checked) =>
-                  handleChange("explainer", checked)
-                }
-              />
-            </div>
-
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
               <div className="space-y-1">
                 <Label htmlFor="version">Versão do modelo</Label>
@@ -157,22 +137,22 @@ export function ApiTestForm({ onSubmit }: ApiTestFormProps) {
                 </span>
               </div>
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
-              <div className="space-y-1">
-                <Label htmlFor="is-canary">Is Canary</Label>
-                <p className="text-sm text-muted-foreground">
-                  Usa a rota canary para validações controladas.
-                </p>
-              </div>
-              <Switch
-                id="is-canary"
-                checked={formData.is_canary}
-                onCheckedChange={(checked) =>
-                  handleChange("is_canary", checked)
-                }
-              />
-            </div>
+            <SwitchChoiceCard
+              title="Explainer"
+              description="Inclui detalhes explicativos na resposta."
+              id="explainer"
+              checked={formData.explainer}
+              onCheckedChange={(checked) => handleChange("explainer", checked)}
+            />
+            <SwitchChoiceCard
+              title="Is Canary"
+              description="Usa a rota canary para validações controladas."
+              id="is-canary"
+              checked={formData.is_canary}
+              onCheckedChange={(checked) =>
+                handleChange("is_canary", checked)
+              }
+            />
           </div>
 
           <Button type="submit" className="w-full" disabled={!isFormValid}>
