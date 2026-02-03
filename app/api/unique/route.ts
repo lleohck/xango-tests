@@ -1,95 +1,128 @@
+// app/api/unique/route.ts
 import { NextResponse } from "next/server";
-import { fetchIamToken, type Environment } from "@/server/auth/iam";
-import { fetchBiData } from "@/server/api/bi-data";
+import { Agent } from "undici";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+import { fetchIamToken } from "@/server/auth/iam";
+import type { ApiType, Environment } from "@/types/shared";
+import { buildRequest, getBaseUrl } from "@/server/api/registry";
 
-const REQUIRED = (name: string) => {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
-  }
-  return value;
-};
+export const runtime = "nodejs";
 
-const getApiUrl = (apiType: string, environment: Environment) => {
-  const env = environment.toUpperCase() as Environment;
-  if (apiType === "bi-data") {
-    return REQUIRED(`NEXT_PUBLIC_API_BI_DATA_${env}_URL`);
+/**
+ * ⚠️ INSEGURO: desliga validação SSL/TLS.
+ * Aplicado em TODAS as chamadas conforme solicitado.
+ *
+ * Recomendações:
+ * - Use apenas em DEV/testes internos
+ * - Se possível, troque por NODE_EXTRA_CA_CERTS com o CA corporativo
+ */
+const insecureDispatcher = new Agent({
+  connect: {
+    rejectUnauthorized: false,
+  },
+});
+
+function safeJson(text: string) {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return { raw: text };
   }
-  if (apiType === "ci-data") {
-    return REQUIRED(`NEXT_PUBLIC_API_CI_DATA_${env}_URL`);
-  }
-  throw new Error('Tipo de API inválido. Use "bi-data" | "ci-data".');
-};
+}
+
+function serializeError(e: any) {
+  return {
+    name: e?.name,
+    message: e?.message,
+    code: e?.code,
+    cause: e?.cause
+      ? {
+          name: e.cause?.name,
+          message: e.cause?.message,
+          code: e.cause?.code,
+          hostname: e.cause?.hostname,
+          port: e.cause?.port,
+        }
+      : undefined,
+  };
+}
 
 export async function POST(req: Request) {
+  const start = Date.now();
+
   try {
-    const body = await req.json().catch(() => ({}));
-    const environment = String(body?.environment ?? "").toUpperCase();
-    const apiType = String(body?.apiType ?? "");
-    const payload = body?.payload ?? {};
+    const { environment, apiType, payload } = (await req.json()) as {
+      environment: Environment;
+      apiType: ApiType;
+      payload: any;
+    };
 
-    const allowedEnvs = ["DEV", "UAT", "PRD"] as const;
-    if (!allowedEnvs.includes(environment as any)) {
-      return NextResponse.json(
-        { error: 'Parâmetro "environment" inválido. Use DEV | UAT | PRD.' },
-        { status: 400 },
-      );
-    }
+    const baseUrl = getBaseUrl(apiType, environment);
+    const built = buildRequest(apiType, baseUrl, payload);
 
-    if (!["bi-data", "ci-data"].includes(apiType)) {
-      return NextResponse.json(
-        { error: 'Parâmetro "apiType" inválido. Use bi-data | ci-data.' },
-        { status: 400 },
-      );
-    }
+    // IAM token
+    const token = await fetchIamToken(environment);
 
-    const token = await fetchIamToken(environment as Environment);
-    const apiUrl = getApiUrl(apiType, environment as Environment);
+    const headers = {
+      ...built.headers,
+      Authorization: `Bearer ${token.accessToken}`,
+    };
 
-    const res = await fetchBiData(
-      apiUrl,
-      token.accessToken,
-      payload?.version,
-      payload?.modelo,
-      payload?.ndoc,
-      payload?.explainer,
-      payload?.is_canary,
-    );
+    // Debug sem token
+    const requestDebug = {
+      url: built.url,
+      method: built.method,
+      headers: { ...headers, Authorization: "Bearer ********" },
+      body: built.body ?? null,
+    };
+
+    // ✅ fetch com insecureDispatcher aplicado SEMPRE
+    const res = await fetch(built.url, {
+      method: built.method,
+      headers,
+      body: built.body ? JSON.stringify(built.body) : undefined,
+      cache: "no-store",
+
+      // 👇 sempre ativo conforme pedido
+      dispatcher: insecureDispatcher,
+    } as any);
+
+    const elapsedMs = Date.now() - start;
 
     const text = await res.text();
-    let data: unknown = null;
-    if (text) {
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = text;
-      }
-    }
+    const parsed = safeJson(text);
+
+    const meta = {
+      ok: res.ok,
+      status: res.status,
+      elapsedMs,
+      url: built.url,
+      method: built.method,
+      timestamp: new Date().toISOString(),
+      request: requestDebug,
+    };
 
     if (!res.ok) {
-      return NextResponse.json(
-        {
-          error:
-            (data && typeof data === "object" && "error" in data && data.error) ||
-            (typeof data === "string" ? data : null) ||
-            text ||
-            `Falha ao consultar API (${res.status}).`,
-        },
-        { status: res.status },
-      );
+      return NextResponse.json({ meta, error: parsed }, { status: res.status });
     }
 
-    if (data && typeof data === "string") {
-      return NextResponse.json({ data });
-    }
-
-    return NextResponse.json(data ?? {});
+    return NextResponse.json({ meta, data: parsed }, { status: 200 });
   } catch (err: any) {
+    const elapsedMs = Date.now() - start;
+
     return NextResponse.json(
-      { error: err?.message ?? "Erro inesperado" },
+      {
+        meta: {
+          ok: false,
+          status: null,
+          elapsedMs,
+          timestamp: new Date().toISOString(),
+        },
+        error: {
+          message: err?.message ?? "fetch failed",
+          details: serializeError(err),
+        },
+      },
       { status: 500 },
     );
   }

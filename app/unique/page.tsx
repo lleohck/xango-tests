@@ -1,17 +1,20 @@
 "use client";
+
 import { useState } from "react";
+import AppHeader from "@/components/shared/app-header";
+
+import EnvironmentConfigForm, {
+  EnvironmentConfig,
+  environments,
+} from "@/components/shared/environment-config-form";
+
 import {
   UniqueTestForm,
   type UniqueTestFormData,
 } from "@/components/unique/form";
 
-import AppHeader from "@/components/shared/app-header";
-import EnvironmentConfigForm, {
-  EnvironmentConfig,
-  environments,
-} from "@/components/shared/environment-config-form";
 import UniqueResultCard from "@/components/unique/result-card";
-import { ApiType, Environment } from "@/types/shared";
+import type { ApiType, Environment } from "@/types/shared";
 
 type LastQuery = UniqueTestFormData & {
   environment: Environment;
@@ -19,29 +22,49 @@ type LastQuery = UniqueTestFormData & {
   currentEnvironment: EnvironmentConfig;
 };
 
+type ApiResultShape =
+  | {
+      meta?: {
+        ok: boolean;
+        status: number | null;
+        elapsedMs: number;
+        method?: string;
+        url?: string;
+        timestamp?: string;
+        request?: unknown;
+      };
+      data?: unknown;
+      error?: unknown;
+    }
+  | unknown;
+
 export default function UniqueTest() {
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [currentEnvironment, setCurrentEnvironment] =
     useState<EnvironmentConfig>(environments[0]);
+
+  // ⚠️ Garanta que seu EnvironmentConfigForm suporte as 4 APIs (bi-data, ci-data, bi-orchestrator, ci-orchestrator)
   const [apiType, setApiType] = useState<ApiType>("bi-data");
-  const [apiResponse, setApiResponse] = useState<unknown>(null);
+
   const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
 
+  // Último resultado enriquecido (meta + data/error)
+  const [apiResult, setApiResult] = useState<ApiResultShape>(null);
+
+  // Histórico (últimos N)
+  const [history, setHistory] = useState<ApiResultShape[]>([]);
+
   const handleApiTest = async (formData: UniqueTestFormData) => {
-    const biDataParams = formData.forms["bi-data"];
     setLastQuery({ ...formData, environment, apiType, currentEnvironment });
-    setApiResponse(null);
+    setApiResult(null);
+
+    // pega os parâmetros do form específico da API
+    const apiParams = formData.forms[apiType];
 
     const payload = {
       modelo: formData.modelo,
       ndoc: formData.ndoc,
-      ...(apiType === "bi-data" && biDataParams
-        ? {
-            explainer: biDataParams.explainer,
-            version: biDataParams.version,
-            is_canary: biDataParams.is_canary,
-          }
-        : {}),
+      ...(apiParams ?? {}),
     };
 
     try {
@@ -56,27 +79,23 @@ export default function UniqueTest() {
         cache: "no-store",
       });
 
-      const text = await res.text();
-      let data: unknown = null;
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-      }
+      const json = await res.json();
 
-      if (!res.ok) {
-        const message =
-          (data && typeof data === "object" && "error" in data && data.error) ||
-          (typeof data === "string" ? data : null) ||
-          `Falha ao consultar API (${res.status}).`;
-        throw new Error(String(message));
-      }
-
-      setApiResponse(data);
+      setApiResult(json);
+      setHistory((prev) => [json, ...prev].slice(0, 30));
     } catch (err: any) {
-      setApiResponse({ error: err?.message ?? "Erro ao consultar API" });
+      const fallback = {
+        meta: {
+          ok: false,
+          status: null,
+          elapsedMs: 0,
+          timestamp: new Date().toISOString(),
+        },
+        error: { message: err?.message ?? "Erro ao consultar API" },
+      };
+
+      setApiResult(fallback);
+      setHistory((prev) => [fallback, ...prev].slice(0, 30));
     }
   };
 
@@ -90,11 +109,12 @@ export default function UniqueTest() {
           { label: "Processamento em Lote", href: "/batch" },
         ]}
       />
+
       <div className="bg-background px-6 py-5">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
-              Consulta Unica de Modelos
+              Consulta Única de Modelos
             </h1>
             <p className="text-muted-foreground">
               Teste e valide os retornos das APIs em diferentes ambientes
@@ -111,10 +131,16 @@ export default function UniqueTest() {
                 currentEnvironment={currentEnvironment}
                 setCurrentEnvironment={setCurrentEnvironment}
               />
+
               <UniqueTestForm apiName={apiType} onSubmit={handleApiTest} />
             </div>
 
-            <UniqueResultCard lastQuery={lastQuery} apiResponse={apiResponse} />
+            <UniqueResultCard
+              lastQuery={lastQuery}
+              apiResult={apiResult}
+              history={history}
+              onClearHistory={() => setHistory([])}
+            />
           </div>
         </div>
       </div>

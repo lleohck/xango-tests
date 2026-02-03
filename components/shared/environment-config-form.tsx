@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ApiType } from "@/types/shared";
 
 type Environment = "DEV" | "UAT" | "PRD";
 export type EnvironmentConfig = {
@@ -44,10 +45,11 @@ export const environments: Array<EnvironmentConfig> = [
   },
 ];
 
-type ApiType = "ci-data" | "bi-data";
 const apiOptions: Array<{ value: ApiType; label: string }> = [
   { value: "bi-data", label: "bi-data" },
   { value: "ci-data", label: "ci-data" },
+  { value: "ci-orchestrator", label: "ci-orchestrator" },
+  { value: "bi-orchestrator", label: "bi-orchestrator" },
 ];
 
 type EnvironmentConfigFormProps = {

@@ -1,0 +1,239 @@
+Cores da Marca
+Brand Primary
+seds-color-brand
+primary-dark
+#1e437a
+primary-base
+#2a5595
+primary-light
+#687db0
+Brand Primary Alternative
+seds-color-brand-primary
+-alt-dark
+#a6afd0
+-alt-base
+#c6cbe1
+-alt-light
+#f7f8fb
+Brand Secondary
+seds-color-brand
+-secondary-dark
+#a31b50
+-secondary-base
+#e80070
+-secondary-light
+#fe5b90
+Brand Secondary Alternative
+seds-color-brand-secondary
+-alt-dark
+#fe5b90
+-alt-base
+#ffbacb
+-alt-light
+#fff6f8
+Brand Tertiary
+seds-color-brand
+-tertiary-dark
+#4a154b
+-tertiary-base
+#77127b
+-tertiary-light
+#a768a6
+Brand Tertiary Alternative
+seds-color-brand-tertiary
+-alt-dark
+#b985b7
+-alt-base
+#dec4dd
+-alt-light
+#fbf7fa
+Cores de Feedback
+Feedback Success
+seds-color-feedback
+-success-dark
+#1a4d31
+-success-base
+#1b7749
+-success-light
+#0fac67
+Feedback Success Alternative
+seds-color-feedback-success
+-alt-dark
+#92dcae
+-alt-base
+#c7edd4
+-alt-light
+#f1fbf4
+Feedback Warning
+seds-color-feedback
+-warning-dark
+#9e5612
+-warning-base
+#e47a08
+-warning-light
+#ff9735
+Feedback Warning Alternative
+seds-color-feedback-warning
+-alt-dark
+#ffbf85
+-alt-base
+#ffe0c2
+-alt-light
+#fff7f0
+Feedback Error
+seds-color-feedback
+-error-dark
+#851b15
+-error-base
+#d0141a
+-error-light
+#fa1320
+Feedback Error Alternative
+seds-color-feedback-error
+-alt-dark
+#ffbdad
+-alt-base
+#ffdcd3
+-alt-light
+#fff6f3
+Cores de Dados
+Data Teal
+seds-color-data
+-teal-dark
+#1c5f59
+-teal-base
+#188c84
+-teal-light
+#54c2b8
+Data Teal Alternative
+seds-color-data-teal
+-alt-dark
+#98d8d1
+-alt-base
+#caebe7
+-alt-light
+#f2faf9
+Data Sapphire
+seds-color-data
+-sapphire-dark
+#165b76
+-sapphire-base
+#0c7092
+-sapphire-light
+#3087aa
+Data Sapphire Alternative
+seds-color-data-sapphire
+-alt-dark
+#8eb6cc
+-alt-base
+#dae6ee
+-alt-light
+#f6f9fb
+Data Yellow
+seds-color-data
+-yellow-dark
+#9e5612
+-yellow-base
+#e57b08
+-yellow-light
+#ff9a00
+Data Yellow Alternative
+seds-color-data-yellow
+-alt-dark
+#ffc400
+-alt-base
+#f8efc4
+-alt-light
+#fffcf0
+Data Lime
+seds-color-data
+-lime-dark
+#555915
+-lime-base
+#7d8314
+-lime-light
+#afb904
+Data Lime Alternative
+seds-color-data-lime
+-alt-dark
+#cfd265
+-alt-base
+#e9e7af
+-alt-light
+#faf9eb
+Cores de Sistema
+System Disabled
+seds-color-system-disabled
+-background
+#e2e4e7
+-text
+#abb1b8
+Cores de Texto
+Text Base
+seds-color-text
+-base
+#252c34
+-light
+#384553
+-lighter
+#5e6976
+Text Invert
+seds-color-text-invert
+-base
+#ffffff
+-light
+#f8f8f9
+-lighter
+#e2e4e7
+Text Feedback
+seds-color-text-feedback
+-error
+#851b15
+-success
+#1a4d31
+-warning
+#9e5612
+Text Link
+seds-color-text-link
+-base
+#2a5595
+-hover
+#1e437a
+-disabled
+#e2e4e7
+-visited
+#77127b
+Cores de Background
+Background Base
+seds-color-background
+-base
+#ffffff
+-dark
+#f8f8f9
+Background Invert
+seds-color-background-invert
+-base
+#252c34
+-light
+#384553
+Cores de Borda
+Border Base
+seds-color-border
+-base
+#e2e4e7
+-light
+#ffffff
+Border Active
+seds-color-border-active
+-primary
+#2a5595
+-secondary
+#e80070
+Border Feedback
+seds-color-border-feedback
+-error
+#d0141a
+-success
+#1b7749
+-warning
+#e47a08
