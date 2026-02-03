@@ -1,18 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import AppHeader from "@/components/shared/app-header";
-
-import EnvironmentConfigForm, {
-  EnvironmentConfig,
-  environments,
-} from "@/components/shared/environment-config-form";
-
 import {
   UniqueTestForm,
   type UniqueTestFormData,
 } from "@/components/unique/form";
 
+import AppHeader from "@/components/shared/app-header";
+import EnvironmentConfigForm, {
+  EnvironmentConfig,
+  environments,
+} from "@/components/shared/environment-config-form";
 import UniqueResultCard from "@/components/unique/result-card";
 import type { ApiType, Environment } from "@/types/shared";
 
@@ -42,25 +40,18 @@ export default function UniqueTest() {
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [currentEnvironment, setCurrentEnvironment] =
     useState<EnvironmentConfig>(environments[0]);
-
-  // ⚠️ Garanta que seu EnvironmentConfigForm suporte as 4 APIs (bi-data, ci-data, bi-orchestrator, ci-orchestrator)
   const [apiType, setApiType] = useState<ApiType>("bi-data");
 
-  const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
-
-  // Último resultado enriquecido (meta + data/error)
   const [apiResult, setApiResult] = useState<ApiResultShape>(null);
-
-  // Histórico (últimos N)
   const [history, setHistory] = useState<ApiResultShape[]>([]);
+  const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleApiTest = async (formData: UniqueTestFormData) => {
     setLastQuery({ ...formData, environment, apiType, currentEnvironment });
-    setApiResult(null);
+    setIsLoading(true);
 
-    // pega os parâmetros do form específico da API
     const apiParams = formData.forms[apiType];
-
     const payload = {
       modelo: formData.modelo,
       ndoc: formData.ndoc,
@@ -96,6 +87,8 @@ export default function UniqueTest() {
 
       setApiResult(fallback);
       setHistory((prev) => [fallback, ...prev].slice(0, 30));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -139,6 +132,7 @@ export default function UniqueTest() {
               lastQuery={lastQuery}
               apiResult={apiResult}
               history={history}
+              isLoading={isLoading}
               onClearHistory={() => setHistory([])}
             />
           </div>

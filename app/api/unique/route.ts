@@ -8,14 +8,39 @@ import { buildRequest, getBaseUrl } from "@/server/api/registry";
 
 export const runtime = "nodejs";
 
-/**
- * ⚠️ INSEGURO: desliga validação SSL/TLS.
- * Aplicado em TODAS as chamadas conforme solicitado.
- *
- * Recomendações:
- * - Use apenas em DEV/testes internos
- * - Se possível, troque por NODE_EXTRA_CA_CERTS com o CA corporativo
- */
+function base64UrlDecode(input: string) {
+  // base64url -> base64
+  input = input.replace(/-/g, "+").replace(/_/g, "/");
+  // padding
+  const pad = input.length % 4;
+  if (pad) input += "=".repeat(4 - pad);
+  return Buffer.from(input, "base64").toString("utf8");
+}
+
+function decodeJwtClaims(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return { isJwt: false as const };
+
+  try {
+    const header = JSON.parse(base64UrlDecode(parts[0]));
+    const payload = JSON.parse(base64UrlDecode(parts[1]));
+    return { isJwt: true as const, header, payload };
+  } catch {
+    return { isJwt: false as const };
+  }
+}
+
+function tokenFingerprint(token: string) {
+  // fingerprint simples: tamanho + primeiros/últimos chars (não revela o token)
+  const t = token || "";
+  return {
+    len: t.length,
+    head: t.slice(0, 12),
+    tail: t.slice(-12),
+    parts: t.split(".").length,
+  };
+}
+
 const insecureDispatcher = new Agent({
   connect: {
     rejectUnauthorized: false,
@@ -60,7 +85,6 @@ export async function POST(req: Request) {
     const baseUrl = getBaseUrl(apiType, environment);
     const built = buildRequest(apiType, baseUrl, payload);
 
-    // IAM token
     const token = await fetchIamToken(environment);
 
     const headers = {
@@ -68,7 +92,6 @@ export async function POST(req: Request) {
       Authorization: `Bearer ${token.accessToken}`,
     };
 
-    // Debug sem token
     const requestDebug = {
       url: built.url,
       method: built.method,
@@ -76,14 +99,11 @@ export async function POST(req: Request) {
       body: built.body ?? null,
     };
 
-    // ✅ fetch com insecureDispatcher aplicado SEMPRE
     const res = await fetch(built.url, {
       method: built.method,
       headers,
       body: built.body ? JSON.stringify(built.body) : undefined,
       cache: "no-store",
-
-      // 👇 sempre ativo conforme pedido
       dispatcher: insecureDispatcher,
     } as any);
 
