@@ -3,7 +3,6 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { AuthProvider } from "@/components/shared/auth-provider";
 import { ThemeProvider } from "@/components/shared/theme-provider";
-import AppHeader from "@/components/shared/app-header";
 
 export const metadata: Metadata = {
   title: "OSM - Xango Test",
@@ -18,7 +17,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className="antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider>
           <AuthProvider>
             <main>{children}</main>
           </AuthProvider>

@@ -15,11 +15,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 import { useTheme } from "next-themes";
+import { ModeToggle } from "./toogle-theme-mode";
 
 type NavItem = { label: string; href: string };
 
@@ -143,6 +146,26 @@ export default function AppHeader({
                 {theme === "dark" ? <Sun /> : <Moon />}
                 {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
               </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuRadioGroup
+                value={theme ?? "system"}
+                onValueChange={setTheme}
+              >
+                <DropdownMenuRadioItem value="serasa-light">
+                  Serasa Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="serasa-dark">
+                  Serasa Dark
+                </DropdownMenuRadioItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuRadioItem value="system">
+                  System
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
 
               <DropdownMenuSeparator />
 

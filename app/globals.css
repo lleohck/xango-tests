@@ -1,13 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Faz o "dark:" funcionar tanto com .dark quanto com .serasa-dark */
+@custom-variant dark (&:is(.dark *, .serasa-dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -16,27 +18,37 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+
   --color-destructive: var(--destructive);
+
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
+
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
+
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -44,10 +56,113 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  --color-brand-primary: var(--seds-brand-primary-base);
+  --color-brand-primary-dark: var(--seds-brand-primary-dark);
+  --color-brand-primary-light: var(--seds-brand-primary-light);
+
+  --color-brand-secondary: var(--seds-brand-secondary-base);
+  --color-brand-secondary-dark: var(--seds-brand-secondary-dark);
+  --color-brand-secondary-light: var(--seds-brand-secondary-light);
+
+  --color-brand-tertiary: var(--seds-brand-tertiary-base);
+
+  --color-feedback-success: var(--seds-feedback-success-base);
+  --color-feedback-warning: var(--seds-feedback-warning-base);
+  --color-feedback-error: var(--seds-feedback-error-base);
 }
 
+/* =========================================================
+   RAW TOKENS (PALETA SEDS) - não altera tema sozinho
+   Apenas define as cores para reutilizar em serasa-light/dark
+   ========================================================= */
 :root {
   --radius: 0.625rem;
+
+  /* Brand Primary */
+  --seds-brand-primary-dark: #1e437a;
+  --seds-brand-primary-base: #2a5595;
+  --seds-brand-primary-light: #687db0;
+
+  /* Brand Primary Alternative */
+  --seds-brand-primary-alt-dark: #a6afd0;
+  --seds-brand-primary-alt-base: #c6cbe1;
+  --seds-brand-primary-alt-light: #f7f8fb;
+
+  /* Brand Secondary */
+  --seds-brand-secondary-dark: #a31b50;
+  --seds-brand-secondary-base: #e80070;
+  --seds-brand-secondary-light: #fe5b90;
+
+  /* Brand Tertiary */
+  --seds-brand-tertiary-dark: #4a154b;
+  --seds-brand-tertiary-base: #77127b;
+  --seds-brand-tertiary-light: #a768a6;
+
+  /* Feedback */
+  --seds-feedback-success-dark: #1a4d31;
+  --seds-feedback-success-base: #1b7749;
+  --seds-feedback-success-light: #0fac67;
+
+  --seds-feedback-warning-dark: #9e5612;
+  --seds-feedback-warning-base: #e47a08;
+  --seds-feedback-warning-light: #ff9735;
+
+  --seds-feedback-error-dark: #851b15;
+  --seds-feedback-error-base: #d0141a;
+  --seds-feedback-error-light: #fa1320;
+
+  /* Data */
+  --seds-data-teal-dark: #1c5f59;
+  --seds-data-teal-base: #188c84;
+  --seds-data-teal-light: #54c2b8;
+
+  --seds-data-sapphire-dark: #165b76;
+  --seds-data-sapphire-base: #0c7092;
+  --seds-data-sapphire-light: #3087aa;
+
+  --seds-data-yellow-dark: #9e5612;
+  --seds-data-yellow-base: #e57b08;
+  --seds-data-yellow-light: #ff9a00;
+
+  --seds-data-lime-dark: #555915;
+  --seds-data-lime-base: #7d8314;
+  --seds-data-lime-light: #afb904;
+
+  /* System */
+  --seds-system-disabled-bg: #e2e4e7;
+  --seds-system-disabled-text: #abb1b8;
+
+  /* Text */
+  --seds-text-base: #252c34;
+  --seds-text-light: #384553;
+  --seds-text-lighter: #5e6976;
+
+  --seds-text-invert-base: #ffffff;
+  --seds-text-invert-light: #f8f8f9;
+  --seds-text-invert-lighter: #e2e4e7;
+
+  /* Background */
+  --seds-bg-base: #ffffff;
+  --seds-bg-dark: #f8f8f9;
+
+  --seds-bg-invert-base: #252c34;
+  --seds-bg-invert-light: #384553;
+
+  /* Border */
+  --seds-border-base: #e2e4e7;
+  --seds-border-light: #ffffff;
+
+  --seds-border-active-primary: #2a5595;
+  --seds-border-active-secondary: #e80070;
+
+  --seds-border-feedback-error: #d0141a;
+  --seds-border-feedback-success: #1b7749;
+  --seds-border-feedback-warning: #e47a08;
+
+  /* =========================================================
+     FALLBACK ORIGINAL (LIGHT)
+     ========================================================= */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -81,6 +196,9 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* =========================================================
+   FALLBACK ORIGINAL (DARK)
+   ========================================================= */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -115,11 +233,203 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* =========================================================
+   SERASA LIGHT (NOVO TEMA)
+   ========================================================= */
+.serasa-light {
+  --background: var(--seds-bg-base);
+  --foreground: var(--seds-text-base);
+
+  --card: var(--seds-bg-base);
+  --card-foreground: var(--seds-text-base);
+
+  --popover: var(--seds-bg-base);
+  --popover-foreground: var(--seds-text-base);
+
+  --primary: var(--seds-brand-primary-base);
+  --primary-foreground: var(--seds-text-invert-base);
+
+  /* Secundário "soft" (bom para botões secondary, chips, etc.) */
+  --secondary: var(--seds-brand-primary-alt-base);
+  --secondary-foreground: var(--seds-text-base);
+
+  --muted: var(--seds-bg-dark);
+  --muted-foreground: var(--seds-text-lighter);
+
+  --accent: var(--seds-brand-primary-alt-light);
+  --accent-foreground: var(--seds-text-base);
+
+  --destructive: var(--seds-feedback-error-base);
+
+  --border: var(--seds-border-base);
+  --input: var(--seds-border-base);
+  --ring: var(--seds-border-active-primary);
+
+  --chart-1: var(--seds-data-teal-base);
+  --chart-2: var(--seds-data-sapphire-base);
+  --chart-3: var(--seds-data-yellow-base);
+  --chart-4: var(--seds-data-lime-base);
+  --chart-5: var(--seds-brand-tertiary-base);
+
+  --sidebar: var(--seds-bg-dark);
+  --sidebar-foreground: var(--seds-text-base);
+  --sidebar-primary: var(--seds-brand-primary-base);
+  --sidebar-primary-foreground: var(--seds-text-invert-base);
+  --sidebar-accent: var(--seds-brand-primary-alt-light);
+  --sidebar-accent-foreground: var(--seds-text-base);
+  --sidebar-border: var(--seds-border-base);
+  --sidebar-ring: var(--seds-border-active-primary);
+}
+
+/* =========================================================
+   SERASA DARK (NOVO TEMA)
+   ========================================================= */
+.serasa-dark {
+  --background: var(--seds-bg-invert-base);
+  --foreground: var(--seds-text-invert-base);
+
+  --card: var(--seds-bg-invert-light);
+  --card-foreground: var(--seds-text-invert-base);
+
+  --popover: var(--seds-bg-invert-light);
+  --popover-foreground: var(--seds-text-invert-base);
+
+  /* Primary mais claro no dark para melhor contraste */
+  --primary: var(--seds-brand-primary-light);
+  --primary-foreground: var(--seds-bg-invert-base);
+
+  /* Superfícies sutis com toque de marca (sem gritar) */
+  --secondary: color-mix(in oklch, var(--seds-brand-primary-base) 18%, var(--background));
+  --secondary-foreground: var(--foreground);
+
+  --muted: color-mix(in oklch, var(--foreground) 10%, var(--background));
+  --muted-foreground: color-mix(in oklch, var(--foreground) 70%, var(--background));
+
+  /* Accent levemente puxado pro secundário (rosa), mas suave */
+  --accent: color-mix(in oklch, var(--seds-brand-secondary-base) 14%, var(--background));
+  --accent-foreground: var(--foreground);
+
+  --destructive: var(--seds-feedback-error-light);
+
+  --border: color-mix(in oklch, var(--foreground) 12%, var(--background));
+  --input: color-mix(in oklch, var(--foreground) 16%, var(--background));
+  --ring: var(--primary);
+
+  --chart-1: var(--seds-data-teal-light);
+  --chart-2: var(--seds-data-sapphire-light);
+  --chart-3: var(--seds-data-yellow-light);
+  --chart-4: var(--seds-data-lime-light);
+  --chart-5: var(--seds-brand-tertiary-light);
+
+  --sidebar: var(--seds-bg-invert-base);
+  --sidebar-foreground: var(--seds-text-invert-base);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in oklch, var(--seds-brand-primary-base) 16%, var(--background));
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* =========================================================
+   SERASA LIGHT / DARK - PRIORIDADE ALTA (evita override por :root)
+   Cole no FINAL do globals.css
+   ========================================================= */
+
+html.serasa-light {
+  --background: #ffffff;         /* Background Base */
+  --foreground: #252c34;         /* Text Base */
+
+  --card: #ffffff;
+  --card-foreground: #252c34;
+
+  --popover: #ffffff;
+  --popover-foreground: #252c34;
+
+  --primary: #2a5595;            /* Brand Primary Base */
+  --primary-foreground: #ffffff; /* Text Invert Base */
+
+  --secondary: #c6cbe1;          /* Brand Primary Alt Base */
+  --secondary-foreground: #252c34;
+
+  --muted: #f8f8f9;              /* Background Dark */
+  --muted-foreground: #5e6976;   /* Text Lighter */
+
+  --accent: #f7f8fb;             /* Brand Primary Alt Light */
+  --accent-foreground: #252c34;
+
+  --destructive: #d0141a;
+
+  --border: #e2e4e7;
+  --input: #e2e4e7;
+  --ring: #2a5595;
+
+  --chart-1: #188c84;
+  --chart-2: #0c7092;
+  --chart-3: #e57b08;
+  --chart-4: #7d8314;
+  --chart-5: #77127b;
+
+  --sidebar: #f8f8f9;
+  --sidebar-foreground: #252c34;
+  --sidebar-primary: #2a5595;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f7f8fb;
+  --sidebar-accent-foreground: #252c34;
+  --sidebar-border: #e2e4e7;
+  --sidebar-ring: #2a5595;
+}
+
+html.serasa-dark {
+  --background: #252c34;         /* Background Invert Base */
+  --foreground: #ffffff;         /* Text Invert Base */
+
+  --card: #384553;               /* Background Invert Light */
+  --card-foreground: #ffffff;
+
+  --popover: #384553;
+  --popover-foreground: #ffffff;
+
+  --primary: #687db0;            /* Brand Primary Light */
+  --primary-foreground: #252c34;
+
+  --secondary: color-mix(in oklch, #2a5595 18%, #252c34);
+  --secondary-foreground: #ffffff;
+
+  --muted: color-mix(in oklch, #ffffff 10%, #252c34);
+  --muted-foreground: color-mix(in oklch, #ffffff 70%, #252c34);
+
+  --accent: color-mix(in oklch, #e80070 14%, #252c34);
+  --accent-foreground: #ffffff;
+
+  --destructive: #fa1320;
+
+  --border: color-mix(in oklch, #ffffff 12%, #252c34);
+  --input: color-mix(in oklch, #ffffff 16%, #252c34);
+  --ring: #687db0;
+
+  --chart-1: #54c2b8;
+  --chart-2: #3087aa;
+  --chart-3: #ff9a00;
+  --chart-4: #afb904;
+  --chart-5: #a768a6;
+
+  --sidebar: #252c34;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #687db0;
+  --sidebar-primary-foreground: #252c34;
+  --sidebar-accent: color-mix(in oklch, #2a5595 16%, #252c34);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: color-mix(in oklch, #ffffff 12%, #252c34);
+  --sidebar-ring: #687db0;
 }
