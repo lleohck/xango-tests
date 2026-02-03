@@ -27,36 +27,57 @@ export default function UniqueTest() {
   const [apiResponse, setApiResponse] = useState<unknown>(null);
   const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
 
-  const handleApiTest = (formData: UniqueTestFormData) => {
+  const handleApiTest = async (formData: UniqueTestFormData) => {
     const biDataParams = formData.forms["bi-data"];
     setLastQuery({ ...formData, environment, apiType, currentEnvironment });
-    // Mock API response
-    const mockResponse = {
-      status: "success",
-      timestamp: new Date().toISOString(),
-      environment: environment,
-      api: apiType,
-      data: {
-        modelo: formData.modelo,
-        ndoc: formData.ndoc,
-        ...(apiType === "bi-data" && biDataParams
-          ? {
-              explainer: biDataParams.explainer,
-              version: biDataParams.version,
-              is_canary: biDataParams.is_canary,
-            }
-          : {}),
-        result: {
-          score: Math.random().toFixed(4),
-          prediction: Math.random() > 0.5 ? "approved" : "rejected",
-          confidence: (Math.random() * 100).toFixed(2) + "%",
-          processing_time_ms: Math.floor(Math.random() * 1000),
-          model_version: biDataParams?.version,
-        },
-      },
+    setApiResponse(null);
+
+    const payload = {
+      modelo: formData.modelo,
+      ndoc: formData.ndoc,
+      ...(apiType === "bi-data" && biDataParams
+        ? {
+            explainer: biDataParams.explainer,
+            version: biDataParams.version,
+            is_canary: biDataParams.is_canary,
+          }
+        : {}),
     };
 
-    setApiResponse(mockResponse);
+    try {
+      const res = await fetch("/api/unique", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          environment,
+          apiType,
+          payload,
+        }),
+        cache: "no-store",
+      });
+
+      const text = await res.text();
+      let data: unknown = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+      }
+
+      if (!res.ok) {
+        const message =
+          (data && typeof data === "object" && "error" in data && data.error) ||
+          (typeof data === "string" ? data : null) ||
+          `Falha ao consultar API (${res.status}).`;
+        throw new Error(String(message));
+      }
+
+      setApiResponse(data);
+    } catch (err: any) {
+      setApiResponse({ error: err?.message ?? "Erro ao consultar API" });
+    }
   };
 
   return (
