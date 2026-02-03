@@ -21,6 +21,7 @@ import BiDataParamsForm, {
   BiDataParamsFormData,
 } from "../shared/apis/bi-data-params-form";
 import { ApiType } from "@/types/shared";
+import { Field, FieldLabel, FieldDescription } from "../ui/field";
 
 type CiDataParamsFormData = Record<string, never>;
 
@@ -40,7 +41,6 @@ interface UniqueTestFormProps {
   onSubmit: (data: UniqueTestFormData) => void;
 }
 
-const modelos = ["hvo1", "hvld", "hrle", "hspn", "hgc2"];
 const defaultBiDataParams: BiDataParamsFormData = {
   version: "v2",
   explainer: false,
@@ -99,22 +99,15 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="modelo">Lista de Modelos *</Label>
-              <Select
+              <Label htmlFor="modelo">Modelo *</Label>
+              <Input
+                id="modelo"
+                type="text"
+                placeholder="Ex: hspn"
                 value={formData.modelo}
-                onValueChange={(value) => handleBaseChange("modelo", value)}
-              >
-                <SelectTrigger id="modelo" className="w-full">
-                  <SelectValue placeholder="Selecione um modelo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelos.map((modelo) => (
-                    <SelectItem key={modelo} value={modelo}>
-                      {modelo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => handleBaseChange("modelo", e.target.value)}
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
