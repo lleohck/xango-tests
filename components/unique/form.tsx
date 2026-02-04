@@ -54,7 +54,7 @@ interface UniqueTestFormProps {
 /** Defaults por API */
 const defaultParams = {
   "bi-data": {
-    version: "v2",
+    version: "v3",
     explainer: false,
     is_canary: false,
   } satisfies BiDataParamsFormData,

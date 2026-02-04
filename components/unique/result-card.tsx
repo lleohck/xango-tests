@@ -21,12 +21,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -34,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import JsonViewer from "@/components/shared/json-viewer";
+import ResultHistoryDrawer from "@/components/unique/result-history-drawer";
 
 import { EnvironmentConfig } from "@/components/shared/environment-config-form";
 import type { ApiType, Environment } from "@/types/shared";
@@ -108,7 +103,12 @@ type RequestDebug = {
 };
 
 function isRequestDebug(v: any): v is RequestDebug {
-  return v && typeof v === "object" && typeof v.url === "string" && typeof v.method === "string";
+  return (
+    v &&
+    typeof v === "object" &&
+    typeof v.url === "string" &&
+    typeof v.method === "string"
+  );
 }
 
 function shellQuote(value: string) {
@@ -129,17 +129,22 @@ function toCurl(req: RequestDebug) {
     if (v === undefined || v === null) continue;
 
     if (k.toLowerCase() === "authorization") {
-      parts.push(`-H ${shellQuote(`Authorization: Bearer <TOKEN>`)}`
-      );
+      parts.push(`-H ${shellQuote(`Authorization: Bearer <TOKEN>`)}`);
       continue;
     }
 
     parts.push(`-H ${shellQuote(`${k}: ${String(v)}`)}`);
   }
 
-  const hasBody = req.body !== undefined && req.body !== null && method !== "GET" && method !== "HEAD";
+  const hasBody =
+    req.body !== undefined &&
+    req.body !== null &&
+    method !== "GET" &&
+    method !== "HEAD";
+
   if (hasBody) {
-    const bodyStr = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    const bodyStr =
+      typeof req.body === "string" ? req.body : JSON.stringify(req.body);
     parts.push(`--data-raw ${shellQuote(bodyStr)}`);
   }
 
@@ -155,10 +160,18 @@ export default function UniqueResultCard({
 }: UniqueResultCardProps) {
   const meta = getMeta(apiResult);
   const printable = getPrintablePayload(apiResult);
+  const request = isRequestDebug(meta?.request)
+    ? (meta!.request as RequestDebug)
+    : null;
 
-  const [copied, setCopied] = useState<"consulta" | "curl" | "resultado" | null>(null);
+  const [copied, setCopied] = useState<
+    "consulta" | "curl" | "resultado" | null
+  >(null);
 
-  const copyToClipboard = async (text: string, kind: "consulta" | "curl" | "resultado") => {
+  const copyToClipboard = async (
+    text: string,
+    kind: "consulta" | "curl" | "resultado",
+  ) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
@@ -182,8 +195,6 @@ export default function UniqueResultCard({
       }
     }
   };
-
-  const request = isRequestDebug(meta?.request) ? (meta!.request as RequestDebug) : null;
 
   const handleCopyConsulta = () => {
     if (!request) return;
@@ -220,45 +231,62 @@ export default function UniqueResultCard({
           <CardDescription>Resposta JSON retornada pela API</CardDescription>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 gap-2 px-2"
-              disabled={copyDisabled}
-              title="Copiar"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ButtonIcon className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">
-                {isLoading ? "Carregando..." : buttonLabel}
-              </span>
-              <ChevronDown className="h-4 w-4 opacity-70" />
-            </Button>
-          </DropdownMenuTrigger>
+        <div className="flex items-center gap-2">
+          <ResultHistoryDrawer
+            history={history}
+            currentTimestamp={meta?.timestamp ?? null}
+            onClearHistory={onClearHistory}
+          />
 
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={handleCopyConsulta} disabled={!request || isLoading}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copiar consulta
-            </DropdownMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-2 px-2"
+                disabled={copyDisabled}
+                title="Copiar"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ButtonIcon className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {isLoading ? "Carregando..." : buttonLabel}
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
 
-            <DropdownMenuItem onClick={handleCopyCurl} disabled={!request || isLoading}>
-              <Terminal className="mr-2 h-4 w-4" />
-              Copiar cURL
-            </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                onClick={handleCopyConsulta}
+                disabled={!request || isLoading}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar consulta
+              </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={handleCopyResultado} disabled={printable == null || isLoading}>
-              <FileJson className="mr-2 h-4 w-4" />
-              Copiar resultado
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem
+                onClick={handleCopyCurl}
+                disabled={!request || isLoading}
+              >
+                <Terminal className="mr-2 h-4 w-4" />
+                Copiar cURL
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={handleCopyResultado}
+                disabled={printable == null || isLoading}
+              >
+                <FileJson className="mr-2 h-4 w-4" />
+                Copiar resultado
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col gap-4">
@@ -266,7 +294,9 @@ export default function UniqueResultCard({
           {lastQuery && (
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="gap-2">
-                <div className={`h-2 w-2 rounded-full ${lastQuery.currentEnvironment.dotClass}`} />
+                <div
+                  className={`h-2 w-2 rounded-full ${lastQuery.currentEnvironment.dotClass}`}
+                />
                 {lastQuery.currentEnvironment.label}
               </Badge>
 
@@ -274,35 +304,36 @@ export default function UniqueResultCard({
               <Badge variant="outline">{lastQuery.modelo}</Badge>
               <Badge variant="outline">{lastQuery.ndoc}</Badge>
 
-              {lastQuery.apiType === "bi-data" && lastQuery.forms["bi-data"] && (
-                <>
-                  <Badge
-                    variant="outline"
-                    className={
-                      lastQuery.forms["bi-data"].explainer
-                        ? "border-[color:var(--color-feedback-success)]/30 bg-[color:var(--color-feedback-success)]/10 text-[color:var(--color-feedback-success)]"
-                        : "border-[color:var(--color-feedback-error)]/30 bg-[color:var(--color-feedback-error)]/10 text-[color:var(--color-feedback-error)]"
-                    }
-                  >
-                    explainer
-                  </Badge>
+              {lastQuery.apiType === "bi-data" &&
+                lastQuery.forms["bi-data"] && (
+                  <>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lastQuery.forms["bi-data"].explainer
+                          ? "border-[color:var(--color-feedback-success)]/30 bg-[color:var(--color-feedback-success)]/10 text-[color:var(--color-feedback-success)]"
+                          : "border-[color:var(--color-feedback-error)]/30 bg-[color:var(--color-feedback-error)]/10 text-[color:var(--color-feedback-error)]"
+                      }
+                    >
+                      explainer
+                    </Badge>
 
-                  <Badge
-                    variant="outline"
-                    className={
-                      lastQuery.forms["bi-data"].is_canary
-                        ? "border-[color:var(--color-feedback-success)]/30 bg-[color:var(--color-feedback-success)]/10 text-[color:var(--color-feedback-success)]"
-                        : "border-muted-foreground/30 bg-muted/40 text-muted-foreground"
-                    }
-                  >
-                    canary
-                  </Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lastQuery.forms["bi-data"].is_canary
+                          ? "border-[color:var(--color-feedback-success)]/30 bg-[color:var(--color-feedback-success)]/10 text-[color:var(--color-feedback-success)]"
+                          : "border-muted-foreground/30 bg-muted/40 text-muted-foreground"
+                      }
+                    >
+                      canary
+                    </Badge>
 
-                  <Badge variant="outline" className="bg-muted/30">
-                    {lastQuery.forms["bi-data"].version}
-                  </Badge>
-                </>
-              )}
+                    <Badge variant="outline" className="bg-muted/30">
+                      {lastQuery.forms["bi-data"].version}
+                    </Badge>
+                  </>
+                )}
             </div>
           )}
 
@@ -323,78 +354,25 @@ export default function UniqueResultCard({
         {isLoading ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
             <Loader2 className="mb-3 h-6 w-6 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Carregando resultado...</p>
+            <p className="text-sm text-muted-foreground">
+              Carregando resultado...
+            </p>
           </div>
         ) : apiResult ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3">
             <JsonViewer value={printable} defaultOpenDepth={2} />
-
-            {history?.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    Histórico (últimos {history.length})
-                  </p>
-                  {onClearHistory && (
-                    <button
-                      onClick={onClearHistory}
-                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-                      type="button"
-                    >
-                      limpar
-                    </button>
-                  )}
-                </div>
-
-                <Accordion type="single" collapsible className="w-full">
-                  {history.map((h: any, idx: number) => {
-                    const hm = getMeta(h);
-                    const hp = getPrintablePayload(h);
-
-                    return (
-                      <AccordionItem key={idx} value={`item-${idx}`}>
-                        <AccordionTrigger className="text-left">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {hm ? <StatusBadge meta={hm} /> : null}
-                            {hm?.elapsedMs !== undefined && (
-                              <Badge variant="outline">{hm.elapsedMs}ms</Badge>
-                            )}
-                            {hm?.method && <Badge variant="outline">{hm.method}</Badge>}
-                            {hm?.timestamp ? (
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(hm.timestamp).toLocaleString("pt-BR")}
-                              </span>
-                            ) : null}
-                          </div>
-                        </AccordionTrigger>
-
-                        <AccordionContent className="space-y-3">
-                          {hm?.url && (
-                            <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
-                              <div className="text-xs text-muted-foreground">URL</div>
-                              <div className="mt-1 break-all font-mono text-xs text-foreground">
-                                {hm.url}
-                              </div>
-                            </div>
-                          )}
-
-                          <JsonViewer value={hp} defaultOpenDepth={2} className="max-h-[360px]" />
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center">
             <div className="mb-4 rounded-full bg-muted p-3">
               <FileSearchCorner />
             </div>
-            <p className="text-sm text-muted-foreground">Nenhuma consulta realizada ainda</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhuma consulta realizada ainda
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Preencha o formulário e clique em &quot;Executar Teste&quot; para ver o resultado
+              Preencha o formulário e clique em &quot;Executar Teste&quot; para
+              ver o resultado
             </p>
           </div>
         )}

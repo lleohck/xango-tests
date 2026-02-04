@@ -35,9 +35,9 @@ export default function BiDataParamsForm({
         title="Versão do modelo"
         description=" Alterne entre v2 (estável) e v3 (experimental)"
         id="version"
-        checked={formData.version === "v2"}
+        checked={formData.version !== "v2"}
         onCheckedChange={(checked) =>
-          handleChange("version", checked ? "v2" : "v3")
+          handleChange("version", checked ? "v3" : "v2")
         }
       />
       <SwitchChoiceCard

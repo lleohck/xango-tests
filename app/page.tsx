@@ -1,22 +1,97 @@
-import Link from "next/link";
-import { ArrowRight, Layers, Scan } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { useState } from "react";
+import {
+  UniqueTestForm,
+  type UniqueTestFormData,
+} from "@/components/unique/form";
+
 import AppHeader from "@/components/shared/app-header";
+import EnvironmentConfigForm, {
+  EnvironmentConfig,
+  environments,
+} from "@/components/shared/environment-config-form";
+import UniqueResultCard from "@/components/unique/result-card";
+import type { ApiType, Environment } from "@/types/shared";
 
-const cards = [
-  {
-    title: "Consulta Unica",
-    href: "/unique",
-    icon: Scan,
-  },
-  {
-    title: "Processamento em Lote",
-    href: "/batch",
-    icon: Layers,
-  },
-];
+type LastQuery = UniqueTestFormData & {
+  environment: Environment;
+  apiType: ApiType;
+  currentEnvironment: EnvironmentConfig;
+};
 
-export default function Home() {
+type ApiResultShape =
+  | {
+      meta?: {
+        ok: boolean;
+        status: number | null;
+        elapsedMs: number;
+        method?: string;
+        url?: string;
+        timestamp?: string;
+        request?: unknown;
+      };
+      data?: unknown;
+      error?: unknown;
+    }
+  | unknown;
+
+export default function UniqueTest() {
+  const [environment, setEnvironment] = useState<Environment>("DEV");
+  const [currentEnvironment, setCurrentEnvironment] =
+    useState<EnvironmentConfig>(environments[0]);
+  const [apiType, setApiType] = useState<ApiType>("bi-data");
+
+  const [apiResult, setApiResult] = useState<ApiResultShape>(null);
+  const [history, setHistory] = useState<ApiResultShape[]>([]);
+  const [lastQuery, setLastQuery] = useState<LastQuery | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleApiTest = async (formData: UniqueTestFormData) => {
+    setLastQuery({ ...formData, environment, apiType, currentEnvironment });
+    setIsLoading(true);
+
+    const apiParams = formData.forms[apiType];
+    const payload = {
+      modelo: formData.modelo,
+      ndoc: formData.ndoc,
+      ...(apiParams ?? {}),
+    };
+
+    try {
+      const res = await fetch("/api/unique", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          environment,
+          apiType,
+          payload,
+        }),
+        cache: "no-store",
+      });
+
+      const json = await res.json();
+
+      setApiResult(json);
+      setHistory((prev) => [json, ...prev].slice(0, 30));
+    } catch (err: any) {
+      const fallback = {
+        meta: {
+          ok: false,
+          status: null,
+          elapsedMs: 0,
+          timestamp: new Date().toISOString(),
+        },
+        error: { message: err?.message ?? "Erro ao consultar API" },
+      };
+
+      setApiResult(fallback);
+      setHistory((prev) => [fallback, ...prev].slice(0, 30));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div>
       <AppHeader
@@ -28,36 +103,38 @@ export default function Home() {
         ]}
       />
 
-      <div className="flex min-h-[calc(100svh-5rem)] items-center justify-center px-6 py-12">
-        <div className="grid w-full max-w-4xl gap-6 md:grid-cols-2">
-          {cards.map((card) => {
-            const Icon = card.icon;
+      <div className="bg-background px-6 py-5">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Consulta Unica de Modelos
+            </h1>
+            <p className="text-muted-foreground">
+              Teste e valide os retornos das APIs em diferentes ambientes
+            </p>
+          </div>
 
-            return (
-              <Link
-                key={card.href}
-                href={card.href}
-                className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                <Card className="group h-full min-h-[200px] border-border/70 transition-colors hover:border-primary/60 hover:bg-accent/40">
-                  <CardHeader className="flex flex-row items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border bg-muted/60 text-foreground/80 transition-colors group-hover:border-primary/50 group-hover:bg-primary group-hover:text-primary-foreground">
-                      <Icon className="h-6 w-6" aria-hidden="true" />
-                    </div>
-                    <CardTitle className="text-xl md:text-2xl">
-                      {card.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="mt-auto">
-                    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors group-hover:text-foreground">
-                      Acessar
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="flex flex-col gap-6">
+              <EnvironmentConfigForm
+                environment={environment}
+                setEnvironment={setEnvironment}
+                apiType={apiType}
+                setApiType={setApiType}
+                currentEnvironment={currentEnvironment}
+                setCurrentEnvironment={setCurrentEnvironment}
+              />
+              <UniqueTestForm apiName={apiType} onSubmit={handleApiTest} />
+            </div>
+
+            <UniqueResultCard
+              lastQuery={lastQuery}
+              apiResult={apiResult}
+              history={history}
+              isLoading={isLoading}
+              onClearHistory={() => setHistory([])}
+            />
+          </div>
         </div>
       </div>
     </div>
