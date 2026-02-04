@@ -49,7 +49,7 @@ function canaryHeader(is_canary?: boolean) {
  *   URL:  {baseUrl}/{version}/{model}
  *   Headers: X-Canary (se true), explainer, ndoc
  *
- * - CI-DATA = POST ✅ (ajustado)
+ * - CI-DATA = POST 
  *   URL:  {baseUrl}/{model}    (baseUrl termina em /api/score/v1)
  *   Body: { ndoc, appCal: "bifrost"(se bifrost true) }
  *   Headers: X-Canary (se true)
@@ -95,7 +95,7 @@ export function buildRequest(apiType: ApiType, baseUrl: string, payload: any): B
   }
 
   // -------------------------
-  // CI-DATA (POST) ✅ AJUSTADO
+  // CI-DATA (POST) 
   // baseUrl termina em .../api/score/v1
   // final: {baseUrl}/{model}
   // body: { ndoc, appCal? }
@@ -137,6 +137,7 @@ export function buildRequest(apiType: ApiType, baseUrl: string, payload: any): B
         transaction: "transaction",
         user: "user-test",
         countryCode: "BRA",
+        model: modelo
       },
     };
   }

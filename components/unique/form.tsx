@@ -105,7 +105,7 @@ const apiRegistry = {
         value: CiDataParamsFormData[K],
       ) => void;
     }) => (
-      <CiDataParamsForm formData={props.data} setFormData={props.onChange} />
+      <CiDataParamsForm version="unique" formData={props.data} setFormData={props.onChange} />
     ),
   },
 
@@ -136,6 +136,7 @@ const apiRegistry = {
       ) => void;
     }) => (
       <CiOrchestratorParamsForm
+        version="unique"
         formData={props.data}
         setFormData={props.onChange}
       />
@@ -155,7 +156,6 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
     },
   });
 
-  /** Sempre que trocar a API no parent, garante que existam defaults no forms[apiName] */
   const currentApiParams = useMemo(() => {
     const existing = formData.forms[apiName];
     return (existing ?? apiRegistry[apiName].defaultParams) as any;
@@ -164,7 +164,6 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // garante que o forms tenha o objeto atual no apiName
     const normalized: UniqueTestFormData = {
       ...formData,
       forms: {
@@ -180,7 +179,6 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  /** Handler genérico: atualiza qualquer form específico via registry */
   const updateApiParams = <T extends object, K extends keyof T>(
     api: ApiType,
     field: K,
@@ -216,7 +214,6 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Base */}
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="modelo">Modelo *</Label>
@@ -243,7 +240,6 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
             </div>
           </div>
 
-          {/* Form específico da API via registry */}
           <div className="space-y-3">
             {apiRegistry[apiName].render({
               data: currentApiParams,

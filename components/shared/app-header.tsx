@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { useTheme } from "next-themes";
-import { ModeToggle } from "./toogle-theme-mode";
 
 type NavItem = { label: string; href: string };
 

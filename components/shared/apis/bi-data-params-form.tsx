@@ -24,7 +24,7 @@ export default function BiDataParamsForm({
     <div className="grid gap-4">
       <SwitchChoiceCard
         title="Versão do modelo"
-        description="Alterne entre v2 (estável) e v3 (experimental)"
+        description="Alterna entre v2 e v3"
         id="version"
         checked={formData.version !== "v2"}
         onCheckedChange={(checked) =>
@@ -33,14 +33,14 @@ export default function BiDataParamsForm({
       />
       <SwitchChoiceCard
         title="Explainer"
-        description="Inclui detalhes explicativos na resposta."
+        description="Inclui Explainer na resposta."
         id="explainer"
         checked={formData.explainer}
         onCheckedChange={(checked) => setFormData("explainer", checked)}
       />
       <SwitchChoiceCard
         title="Is Canary"
-        description="Usa a rota canary para validações controladas."
+        description="Utiliza a rota Canary para validações controladas."
         id="is-canary"
         checked={formData.is_canary}
         onCheckedChange={(checked) => setFormData("is_canary", checked)}

@@ -7,18 +7,25 @@ export type CiDataParamsFormData = {
   is_canary: boolean;
 };
 
+type props = {
+  version: "unique" | "batch";
+  formData: CiDataParamsFormData;
+  setFormData: <K extends keyof CiDataParamsFormData>(
+    field: K,
+    value: CiDataParamsFormData[K],
+  ) => void;
+};
+
 export default function CiDataParamsForm({
+  version,
   formData,
   setFormData,
-}: {
-  formData: CiDataParamsFormData;
-  setFormData: <K extends keyof CiDataParamsFormData>(field: K, value: CiDataParamsFormData[K]) => void;
-}) {
+}: props) {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <SwitchChoiceCard
         title="Bifrost"
-        description="Envia appCal=bifrost (GET via query param)."
+        description={version == "unique" ? "Habilita appCal=bifrost" : null}
         id="bifrost"
         checked={formData.bifrost}
         onCheckedChange={(checked) => setFormData("bifrost", checked)}
@@ -26,7 +33,11 @@ export default function CiDataParamsForm({
 
       <SwitchChoiceCard
         title="Is Canary"
-        description="Envia header X-Canary=true (senão não envia)."
+        description={
+          version == "unique"
+            ? "Usa a rota Canary para validações controladas."
+            : null
+        }
         id="is-canary"
         checked={formData.is_canary}
         onCheckedChange={(checked) => setFormData("is_canary", checked)}

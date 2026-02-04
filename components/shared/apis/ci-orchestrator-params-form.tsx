@@ -12,9 +12,11 @@ export type CiOrchestratorParamsFormData = {
 };
 
 export default function CiOrchestratorParamsForm({
+  version,
   formData,
   setFormData,
 }: {
+  version: "unique" | "batch";
   formData: CiOrchestratorParamsFormData;
   setFormData: <K extends keyof CiOrchestratorParamsFormData>(
     field: K,
@@ -22,8 +24,8 @@ export default function CiOrchestratorParamsForm({
   ) => void;
 }) {
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-3">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="user">user</Label>
           <Input
@@ -52,7 +54,11 @@ export default function CiOrchestratorParamsForm({
 
       <SwitchChoiceCard
         title="Is Canary"
-        description='Se habilitado, NÃO envia "source=batch" no body.'
+        description={
+          version == "unique"
+            ? "Usa a rota Canary para validações controladas."
+            : null
+        }
         id="is-canary"
         checked={formData.is_canary}
         onCheckedChange={(checked) => setFormData("is_canary", checked)}

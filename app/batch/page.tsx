@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppHeader from "@/components/shared/app-header";
 import EnvironmentConfigForm, {
   EnvironmentConfig,
@@ -37,7 +37,9 @@ import CiOrchestratorParamsForm, {
 } from "@/components/shared/apis/ci-orchestrator-params-form";
 
 import BatchConfigForm from "@/components/batch/batch-config-form";
-import BatchResultsTable, { BatchRow } from "@/components/batch/batch-results-table";
+import BatchResultsTable, {
+  BatchRow,
+} from "@/components/batch/batch-results-table";
 
 type ApiFormDataMap = {
   "bi-data"?: BiDataParamsFormData;
@@ -72,18 +74,71 @@ const defaultParams = {
   } satisfies CiOrchestratorParamsFormData,
 } as const;
 
+type ApiPrefix = "CI" | "BI";
+
+const BATCH_ENV = {
+  CI: {
+    DEV: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_DEV,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_DEV,
+    },
+    UAT: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_UAT,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_UAT,
+    },
+    PRD: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_PRD,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_PRD,
+    },
+  },
+  BI: {
+    DEV: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_DEV,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_DEV,
+    },
+    UAT: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_UAT,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_UAT,
+    },
+    PRD: {
+      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_PRD,
+      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_PRD,
+    },
+  },
+} as const;
+
+function getApiPrefix(apiType: ApiType): ApiPrefix {
+  return apiType.startsWith("ci") ? "CI" : "BI";
+}
+
+function normalizeJsonLikeArray(raw: string) {
+  return raw.trim().replace(/,\s*]/g, "]").replace(/,\s*}/g, "}");
+}
+
 function parseList(raw: string | undefined): string[] {
   if (!raw) return [];
   const trimmed = raw.trim();
   if (!trimmed) return [];
+
   if (trimmed.startsWith("[")) {
+    const normalized = normalizeJsonLikeArray(trimmed);
     try {
-      const arr = JSON.parse(trimmed);
+      const arr = JSON.parse(normalized);
       return Array.isArray(arr) ? arr.map(String) : [];
     } catch {
-      return [];
+      const noBrackets = normalized.replace(/^\[/, "").replace(/]$/, "");
+      return noBrackets
+        .split(",")
+        .map((s) =>
+          s
+            .trim()
+            .replace(/^"(.*)"$/, "$1")
+            .replace(/^'(.*)'$/, "$1"),
+        )
+        .filter(Boolean);
     }
   }
+
   return trimmed
     .split(/[\n,;]+/g)
     .map((s) => s.trim())
@@ -130,7 +185,12 @@ function diffPaths(a: any, b: any, base = ""): string[] {
   return out;
 }
 
-async function callUnique(environment: Environment, apiType: ApiType, payload: any, signal?: AbortSignal) {
+async function callUnique(
+  environment: Environment,
+  apiType: ApiType,
+  payload: any,
+  signal?: AbortSignal,
+) {
   const res = await fetch("/api/unique", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -159,17 +219,20 @@ async function promisePool<T, R>(
   let idx = 0;
   let done = 0;
 
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (idx < items.length) {
-      if (isAborted()) return;
-      const current = items[idx++];
-      const result = await worker(current);
-      if (isAborted()) return;
-      onResult(result);
-      done++;
-      onProgress(done);
-    }
-  });
+  const runners = Array.from(
+    { length: Math.min(limit, items.length) },
+    async () => {
+      while (idx < items.length) {
+        if (isAborted()) return;
+        const current = items[idx++];
+        const result = await worker(current);
+        if (isAborted()) return;
+        onResult(result);
+        done++;
+        onProgress(done);
+      }
+    },
+  );
 
   await Promise.all(runners);
 }
@@ -192,14 +255,31 @@ export default function BatchTest() {
     },
   });
 
-  const documentsList = useMemo(() => parseList(process.env.NEXT_PUBLIC_BATCH_DOCUMENTS), []);
-  const modelsList = useMemo(() => parseList(process.env.NEXT_PUBLIC_BATCH_MODELS), []);
+  const apiPrefix = useMemo(() => getApiPrefix(apiType), [apiType]);
+
+  const rawDocs =
+    (BATCH_ENV as any)[apiPrefix]?.[environment]?.documents ?? undefined;
+  const rawModels =
+    (BATCH_ENV as any)[apiPrefix]?.[environment]?.models ?? undefined;
+
+  const documentsList = useMemo(() => parseList(rawDocs), [rawDocs]);
+  const modelsList = useMemo(() => parseList(rawModels), [rawModels]);
 
   const maxDocuments = Math.max(1, Math.min(100, documentsList.length || 100));
   const maxModels = Math.max(1, Math.min(20, modelsList.length || 20));
 
-  const [numDocuments, setNumDocuments] = useState([Math.min(10, maxDocuments)]);
+  const [numDocuments, setNumDocuments] = useState([
+    Math.min(10, maxDocuments),
+  ]);
   const [numModels, setNumModels] = useState([Math.min(10, maxModels)]);
+
+  useEffect(() => {
+    setNumDocuments(([v]) => [Math.max(1, Math.min(v ?? 10, maxDocuments))]);
+  }, [maxDocuments]);
+
+  useEffect(() => {
+    setNumModels(([v]) => [Math.max(1, Math.min(v ?? 10, maxModels))]);
+  }, [maxModels]);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -231,7 +311,8 @@ export default function BatchTest() {
     });
   };
 
-  const currentParams = (formData.forms as any)[apiType] ?? (defaultParams as any)[apiType];
+  const currentParams =
+    (formData.forms as any)[apiType] ?? (defaultParams as any)[apiType];
 
   const startBatch = async () => {
     if (isProcessing) return;
@@ -239,15 +320,23 @@ export default function BatchTest() {
     const docsN = Math.max(1, Math.min(numDocuments[0] ?? 1, maxDocuments));
     const modelsN = Math.max(1, Math.min(numModels[0] ?? 1, maxModels));
 
-    const docs = (documentsList.length
-      ? documentsList
-      : Array.from({ length: 100 }).map((_, i) => String(i + 1).padStart(11, "0"))).slice(0, docsN);
+    const docs = (
+      documentsList.length
+        ? documentsList
+        : Array.from({ length: 100 }).map((_, i) =>
+            String(i + 1).padStart(11, "0"),
+          )
+    ).slice(0, docsN);
 
-    const models = (modelsList.length
-      ? modelsList
-      : Array.from({ length: 20 }).map((_, i) => `model-${i + 1}`)).slice(0, modelsN);
+    const models = (
+      modelsList.length
+        ? modelsList
+        : Array.from({ length: 20 }).map((_, i) => `model-${i + 1}`)
+    ).slice(0, modelsN);
 
-    const combos = models.flatMap((model) => docs.map((ndoc) => ({ model, ndoc })));
+    const combos = models.flatMap((model) =>
+      docs.map((ndoc) => ({ model, ndoc })),
+    );
     const comparisons = combos.length;
 
     setRows([]);
@@ -278,8 +367,18 @@ export default function BatchTest() {
         5,
         async ({ model, ndoc }) => {
           const payload = { modelo: model, ndoc, ...(currentParams ?? {}) };
-          const exec1 = await callUnique(environment, apiType, payload, controller.signal);
-          const exec2 = await callUnique(environment, apiType, payload, controller.signal);
+          const exec1 = await callUnique(
+            environment,
+            apiType,
+            payload,
+            controller.signal,
+          );
+          const exec2 = await callUnique(
+            environment,
+            apiType,
+            payload,
+            controller.signal,
+          );
 
           const meta1 = getMeta(exec1);
           const meta2 = getMeta(exec2);
@@ -356,7 +455,8 @@ export default function BatchTest() {
               Processamento em Lote
             </h1>
             <p className="text-muted-foreground">
-              Teste e valide os retornos das APIs em diferentes ambientes usando processamento em lote.
+              Teste e valide os retornos das APIs em diferentes ambientes usando
+              processamento em lote.
             </p>
           </div>
 
@@ -388,34 +488,53 @@ export default function BatchTest() {
                       version="batch"
                       formData={currentParams as BiDataParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<BiDataParamsFormData, any>("bi-data", field, value)
+                        updateApiParams<BiDataParamsFormData, any>(
+                          "bi-data",
+                          field,
+                          value,
+                        )
                       }
                     />
                   )}
 
                   {apiType === "ci-data" && (
                     <CiDataParamsForm
+                      version="batch"
                       formData={currentParams as CiDataParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<CiDataParamsFormData, any>("ci-data", field, value)
+                        updateApiParams<CiDataParamsFormData, any>(
+                          "ci-data",
+                          field,
+                          value,
+                        )
                       }
                     />
                   )}
 
                   {apiType === "bi-orchestrator" && (
                     <BiOrchestratorParamsForm
+                      version="batch"
                       formData={currentParams as BiOrchestratorParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<BiOrchestratorParamsFormData, any>("bi-orchestrator", field, value)
+                        updateApiParams<BiOrchestratorParamsFormData, any>(
+                          "bi-orchestrator",
+                          field,
+                          value,
+                        )
                       }
                     />
                   )}
 
                   {apiType === "ci-orchestrator" && (
                     <CiOrchestratorParamsForm
+                      version="batch"
                       formData={currentParams as CiOrchestratorParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<CiOrchestratorParamsFormData, any>("ci-orchestrator", field, value)
+                        updateApiParams<CiOrchestratorParamsFormData, any>(
+                          "ci-orchestrator",
+                          field,
+                          value,
+                        )
                       }
                     />
                   )}
@@ -426,7 +545,10 @@ export default function BatchTest() {
 
           <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardHeader
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex flex-row items-center justify-between gap-3"
+              >
                 <div>
                   <CardTitle>Configuração do Lote</CardTitle>
                   {isOpen && (
@@ -437,7 +559,12 @@ export default function BatchTest() {
                 </div>
 
                 <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="icon" className="size-8" aria-label="Alternar detalhes">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Alternar detalhes"
+                  >
                     <ChevronsUpDown />
                   </Button>
                 </CollapsibleTrigger>
@@ -468,7 +595,8 @@ export default function BatchTest() {
             <CardHeader>
               <CardTitle>Resultados da Comparação</CardTitle>
               <CardDescription>
-                Comparação entre duas execuções consecutivas para cada combinação de modelo e documento
+                Comparação entre duas execuções consecutivas para cada
+                combinação de modelo e documento
               </CardDescription>
             </CardHeader>
             <CardContent>

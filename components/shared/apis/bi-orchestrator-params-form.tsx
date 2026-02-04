@@ -7,8 +7,6 @@ export type BiOrchestratorParamsFormData = {
   is_canary: boolean;
 };
 
-
-
 type BiOrchestratorParamsFormProps = {
   version: "unique" | "batch";
   formData: BiOrchestratorParamsFormData;
@@ -23,19 +21,26 @@ export default function BiOrchestratorParamsForm({
   formData,
   setFormData,
 }: BiOrchestratorParamsFormProps) {
-
   return (
     <div className="grid gap-4">
       <SwitchChoiceCard
         title="Explainer"
-        description="Inclui detalhes explicativos no body (POST)."
+        description={
+          version == "unique"
+            ? "Inclui Explainer na resposta."
+            : null
+        }
         id="explainer"
         checked={formData.explainer}
         onCheckedChange={(checked) => setFormData("explainer", checked)}
       />
       <SwitchChoiceCard
         title="Is Canary"
-        description="Envia header X-Canary=true (senão não envia)."
+        description={
+          version == "unique"
+            ? "Usa a rota Canary para validações controladas."
+            : null
+        }
         id="is-canary"
         checked={formData.is_canary}
         onCheckedChange={(checked) => setFormData("is_canary", checked)}

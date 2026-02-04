@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,8 +37,12 @@ export default function BatchResultsTable({ rows }: Props) {
 
   const stats = useMemo(() => {
     const total = rows.length;
-    const matches = rows.filter((r) => r.diffCount === 0 && r.ok1 && r.ok2).length;
-    const mismatches = rows.filter((r) => r.diffCount > 0 && r.ok1 && r.ok2).length;
+    const matches = rows.filter(
+      (r) => r.diffCount === 0 && r.ok1 && r.ok2,
+    ).length;
+    const mismatches = rows.filter(
+      (r) => r.diffCount > 0 && r.ok1 && r.ok2,
+    ).length;
     const failures = rows.filter((r) => !r.ok1 || !r.ok2).length;
     return { total, matches, mismatches, failures };
   }, [rows]);
@@ -111,7 +115,12 @@ export default function BatchResultsTable({ rows }: Props) {
           </Badge>
         </div>
 
-        <Button onClick={downloadCSV} variant="outline" size="sm" disabled={rows.length === 0}>
+        <Button
+          onClick={downloadCSV}
+          variant="outline"
+          size="sm"
+          disabled={rows.length === 0}
+        >
           <Download className="mr-2 h-4 w-4" />
           Baixar CSV
         </Button>
@@ -147,22 +156,30 @@ export default function BatchResultsTable({ rows }: Props) {
               const isOpen = openRow === r.id;
 
               return (
-                <>
-                  <tr key={r.id} className={`border-b hover:bg-accent/30 ${rowClass}`}>
+                <Fragment key={r.id}>
+                  <tr className={`border-b hover:bg-accent/30 ${rowClass}`}>
                     <td className="px-2 py-2 align-middle">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => setOpenRow((prev) => (prev === r.id ? null : r.id))}
+                        onClick={() =>
+                          setOpenRow((prev) => (prev === r.id ? null : r.id))
+                        }
                       >
-                        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
                       </Button>
                     </td>
 
                     <td className="px-4 py-3 align-middle">{r.model}</td>
-                    <td className="px-4 py-3 align-middle font-mono text-xs">{r.ndoc}</td>
+                    <td className="px-4 py-3 align-middle font-mono text-xs">
+                      {r.ndoc}
+                    </td>
 
                     <td className="px-4 py-3 align-middle text-center">
                       <Badge variant="outline">{r.status1 ?? "NO HTTP"}</Badge>
@@ -172,8 +189,12 @@ export default function BatchResultsTable({ rows }: Props) {
                       <Badge variant="outline">{r.status2 ?? "NO HTTP"}</Badge>
                     </td>
 
-                    <td className="px-4 py-3 align-middle text-center font-mono text-xs">{r.elapsed1}</td>
-                    <td className="px-4 py-3 align-middle text-center font-mono text-xs">{r.elapsed2}</td>
+                    <td className="px-4 py-3 align-middle text-center font-mono text-xs">
+                      {r.elapsed1}
+                    </td>
+                    <td className="px-4 py-3 align-middle text-center font-mono text-xs">
+                      {r.elapsed2}
+                    </td>
 
                     <td className="px-4 py-3 align-middle text-center font-mono text-xs font-semibold">
                       {r.diffCount}
@@ -192,7 +213,9 @@ export default function BatchResultsTable({ rows }: Props) {
                       <td colSpan={9} className="px-4 py-4">
                         <div className="space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">diffs: {r.diffCount}</Badge>
+                            <Badge variant="outline">
+                              diffs: {r.diffCount}
+                            </Badge>
                             {r.diffCount > 0 ? (
                               <Badge
                                 variant="outline"
@@ -220,7 +243,9 @@ export default function BatchResultsTable({ rows }: Props) {
 
                           {r.diffPaths.length > 0 ? (
                             <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
-                              <div className="text-xs text-muted-foreground">Diferenças (paths)</div>
+                              <div className="text-xs text-muted-foreground">
+                                Diferenças (paths)
+                              </div>
                               <div className="mt-2 max-h-24 overflow-auto font-mono text-xs text-foreground">
                                 {r.diffPaths.slice(0, 200).map((p) => (
                                   <div key={p}>{p}</div>
@@ -232,31 +257,51 @@ export default function BatchResultsTable({ rows }: Props) {
                           <div className="grid gap-3 lg:grid-cols-2">
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium">Execução 1</div>
+                                <div className="text-sm font-medium">
+                                  Execução 1
+                                </div>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{r.status1 ?? "NO HTTP"}</Badge>
-                                  <Badge variant="outline">{r.elapsed1}ms</Badge>
+                                  <Badge variant="outline">
+                                    {r.status1 ?? "NO HTTP"}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {r.elapsed1}ms
+                                  </Badge>
                                 </div>
                               </div>
-                              <JsonViewer value={r.result1} defaultOpenDepth={2} className="max-h-[420px]" />
+                              <JsonViewer
+                                value={r.result1}
+                                defaultOpenDepth={2}
+                                className="max-h-[420px]"
+                              />
                             </div>
 
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium">Execução 2</div>
+                                <div className="text-sm font-medium">
+                                  Execução 2
+                                </div>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline">{r.status2 ?? "NO HTTP"}</Badge>
-                                  <Badge variant="outline">{r.elapsed2}ms</Badge>
+                                  <Badge variant="outline">
+                                    {r.status2 ?? "NO HTTP"}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {r.elapsed2}ms
+                                  </Badge>
                                 </div>
                               </div>
-                              <JsonViewer value={r.result2} defaultOpenDepth={2} className="max-h-[420px]" />
+                              <JsonViewer
+                                value={r.result2}
+                                defaultOpenDepth={2}
+                                className="max-h-[420px]"
+                              />
                             </div>
                           </div>
                         </div>
                       </td>
                     </tr>
                   ) : null}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
