@@ -71,6 +71,7 @@ export function SwitchChoiceCard({
                 id={id}
                 checked={checked}
                 onCheckedChange={onCheckedChange}
+                className=""
               />
             </>
           )}

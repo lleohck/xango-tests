@@ -7,13 +7,23 @@ export type BiOrchestratorParamsFormData = {
   is_canary: boolean;
 };
 
+
+
+type BiOrchestratorParamsFormProps = {
+  version: "unique" | "batch";
+  formData: BiOrchestratorParamsFormData;
+  setFormData: <K extends keyof BiOrchestratorParamsFormData>(
+    field: K,
+    value: BiOrchestratorParamsFormData[K],
+  ) => void;
+};
+
 export default function BiOrchestratorParamsForm({
+  version,
   formData,
   setFormData,
-}: {
-  formData: BiOrchestratorParamsFormData;
-  setFormData: <K extends keyof BiOrchestratorParamsFormData>(field: K, value: BiOrchestratorParamsFormData[K]) => void;
-}) {
+}: BiOrchestratorParamsFormProps) {
+
   return (
     <div className="grid gap-4">
       <SwitchChoiceCard

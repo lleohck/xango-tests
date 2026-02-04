@@ -119,6 +119,7 @@ const apiRegistry = {
       ) => void;
     }) => (
       <BiOrchestratorParamsForm
+        version="unique"
         formData={props.data}
         setFormData={props.onChange}
       />

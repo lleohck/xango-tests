@@ -1,12 +1,13 @@
 "use client";
-import { useState } from "react";
 
+import { useMemo, useRef, useState } from "react";
 import AppHeader from "@/components/shared/app-header";
 import EnvironmentConfigForm, {
   EnvironmentConfig,
   environments,
 } from "@/components/shared/environment-config-form";
-import { ApiType, Environment } from "@/types/shared";
+import type { ApiType, Environment } from "@/types/shared";
+
 import {
   Card,
   CardContent,
@@ -14,87 +15,215 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import BiDataParamsForm, {
-  BiDataParamsFormData,
-} from "@/components/shared/apis/bi-data-params-form";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import { ChevronsUpDown, PlayCircle } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-type BatchTestFormData = {
-  forms: {
-    "bi-data"?: BiDataParamsFormData;
-  };
+import BiDataParamsForm, {
+  BiDataParamsFormData,
+} from "@/components/shared/apis/bi-data-params-form";
+import CiDataParamsForm, {
+  CiDataParamsFormData,
+} from "@/components/shared/apis/ci-data-params-form";
+import BiOrchestratorParamsForm, {
+  BiOrchestratorParamsFormData,
+} from "@/components/shared/apis/bi-orchestrator-params-form";
+import CiOrchestratorParamsForm, {
+  CiOrchestratorParamsFormData,
+} from "@/components/shared/apis/ci-orchestrator-params-form";
+
+import BatchConfigForm from "@/components/batch/batch-config-form";
+import BatchResultsTable, { BatchRow } from "@/components/batch/batch-results-table";
+
+type ApiFormDataMap = {
+  "bi-data"?: BiDataParamsFormData;
+  "ci-data"?: CiDataParamsFormData;
+  "bi-orchestrator"?: BiOrchestratorParamsFormData;
+  "ci-orchestrator"?: CiOrchestratorParamsFormData;
 };
 
-const defaultBiDataParams: BiDataParamsFormData = {
-  version: "v2",
-  explainer: false,
-  is_canary: false,
+type BatchTestFormData = {
+  forms: ApiFormDataMap;
 };
+
+const defaultParams = {
+  "bi-data": {
+    version: "v2",
+    explainer: false,
+    is_canary: false,
+  } satisfies BiDataParamsFormData,
+  "ci-data": {
+    bifrost: false,
+    is_canary: false,
+  } satisfies CiDataParamsFormData,
+  "bi-orchestrator": {
+    explainer: false,
+    is_canary: false,
+  } satisfies BiOrchestratorParamsFormData,
+  "ci-orchestrator": {
+    user: "user-test",
+    cgc: "62173620",
+    transaction: "transaction",
+    is_canary: false,
+  } satisfies CiOrchestratorParamsFormData,
+} as const;
+
+function parseList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const arr = JSON.parse(trimmed);
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+  return trimmed
+    .split(/[\n,;]+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function getMeta(result: any) {
+  return result?.meta ?? null;
+}
+
+function getPrintablePayload(result: any) {
+  if (!result) return null;
+  if (result?.data !== undefined) return result.data;
+  if (result?.error !== undefined) return result.error;
+  return result;
+}
+
+function diffPaths(a: any, b: any, base = ""): string[] {
+  if (a === b) return [];
+  const aIsObj = a !== null && typeof a === "object";
+  const bIsObj = b !== null && typeof b === "object";
+  if (!aIsObj || !bIsObj) return [base || "$"];
+
+  const aIsArr = Array.isArray(a);
+  const bIsArr = Array.isArray(b);
+  if (aIsArr !== bIsArr) return [base || "$"];
+
+  if (aIsArr && bIsArr) {
+    const max = Math.max(a.length, b.length);
+    const out: string[] = [];
+    for (let i = 0; i < max; i++) {
+      const p = `${base || "$"}[${i}]`;
+      out.push(...diffPaths(a[i], b[i], p));
+    }
+    return out;
+  }
+
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const out: string[] = [];
+  for (const k of keys) {
+    const p = base ? `${base}.${k}` : k;
+    out.push(...diffPaths(a[k], b[k], p));
+  }
+  return out;
+}
+
+async function callUnique(environment: Environment, apiType: ApiType, payload: any, signal?: AbortSignal) {
+  const res = await fetch("/api/unique", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ environment, apiType, payload }),
+    cache: "no-store",
+    signal,
+  });
+
+  const json = await res.json();
+  return json;
+}
+
+function makeId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function promisePool<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+  onResult: (r: R) => void,
+  onProgress: (done: number) => void,
+  isAborted: () => boolean,
+) {
+  let idx = 0;
+  let done = 0;
+
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (idx < items.length) {
+      if (isAborted()) return;
+      const current = items[idx++];
+      const result = await worker(current);
+      if (isAborted()) return;
+      onResult(result);
+      done++;
+      onProgress(done);
+    }
+  });
+
+  await Promise.all(runners);
+}
 
 export default function BatchTest() {
   const [isOpen, setIsOpen] = useState(true);
-  const [numDocuments, setNumDocuments] = useState([10]);
-  const [numModels, setNumModels] = useState([10]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [environment, setEnvironment] = useState<Environment>("DEV");
 
+  const [environment, setEnvironment] = useState<Environment>("DEV");
   const [currentEnvironment, setCurrentEnvironment] =
     useState<EnvironmentConfig>(environments[0]);
 
+  const [apiType, setApiType] = useState<ApiType>("bi-data");
+
   const [formData, setFormData] = useState<BatchTestFormData>({
     forms: {
-      "bi-data": defaultBiDataParams,
+      "bi-data": defaultParams["bi-data"],
+      "ci-data": defaultParams["ci-data"],
+      "bi-orchestrator": defaultParams["bi-orchestrator"],
+      "ci-orchestrator": defaultParams["ci-orchestrator"],
     },
   });
 
-  const [apiType, setApiType] = useState<ApiType>("bi-data");
+  const documentsList = useMemo(() => parseList(process.env.NEXT_PUBLIC_BATCH_DOCUMENTS), []);
+  const modelsList = useMemo(() => parseList(process.env.NEXT_PUBLIC_BATCH_MODELS), []);
 
-  const renderMarks = (marks: number[], min: number, max: number) => (
-    <div className="relative h-4">
-      {marks.map((mark) => {
-        const percent = ((mark - min) / (max - min)) * 100;
-        const positionClass =
-          mark === min
-            ? "translate-x-0"
-            : mark === max
-              ? "-translate-x-full"
-              : "-translate-x-1/2";
+  const maxDocuments = Math.max(1, Math.min(100, documentsList.length || 100));
+  const maxModels = Math.max(1, Math.min(20, modelsList.length || 20));
 
-        return (
-          <span
-            key={mark}
-            className={`absolute text-xs text-muted-foreground ${positionClass}`}
-            style={{ left: `${percent}%` }}
-          >
-            {mark}
-          </span>
-        );
-      })}
-    </div>
-  );
+  const [numDocuments, setNumDocuments] = useState([Math.min(10, maxDocuments)]);
+  const [numModels, setNumModels] = useState([Math.min(10, maxModels)]);
 
-  const handleBiDataChange = <K extends keyof BiDataParamsFormData>(
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [processed, setProcessed] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  const [rows, setRows] = useState<BatchRow[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const updateApiParams = <T extends object, K extends keyof T>(
+    api: ApiType,
     field: K,
-    value: BiDataParamsFormData[K],
+    value: T[K],
   ) => {
     setFormData((prev) => {
-      const currentParams = prev.forms["bi-data"] ?? defaultBiDataParams;
+      const fallback = (defaultParams as any)[api] as T;
+      const current = ((prev.forms as any)[api] ?? fallback) as T;
+
       return {
         ...prev,
         forms: {
           ...prev.forms,
-          "bi-data": {
-            ...currentParams,
+          [api]: {
+            ...current,
             [field]: value,
           },
         },
@@ -102,7 +231,113 @@ export default function BatchTest() {
     });
   };
 
-  const biDataParams = formData.forms["bi-data"] ?? defaultBiDataParams;
+  const currentParams = (formData.forms as any)[apiType] ?? (defaultParams as any)[apiType];
+
+  const startBatch = async () => {
+    if (isProcessing) return;
+
+    const docsN = Math.max(1, Math.min(numDocuments[0] ?? 1, maxDocuments));
+    const modelsN = Math.max(1, Math.min(numModels[0] ?? 1, maxModels));
+
+    const docs = (documentsList.length
+      ? documentsList
+      : Array.from({ length: 100 }).map((_, i) => String(i + 1).padStart(11, "0"))).slice(0, docsN);
+
+    const models = (modelsList.length
+      ? modelsList
+      : Array.from({ length: 20 }).map((_, i) => `model-${i + 1}`)).slice(0, modelsN);
+
+    const combos = models.flatMap((model) => docs.map((ndoc) => ({ model, ndoc })));
+    const comparisons = combos.length;
+
+    setRows([]);
+    setIsProcessing(true);
+    setProgress(0);
+    setProcessed(0);
+    setTotal(comparisons);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const acc: BatchRow[] = [];
+    let flushTimer: any = null;
+
+    const scheduleFlush = () => {
+      if (flushTimer) return;
+      flushTimer = setTimeout(() => {
+        setRows([...acc]);
+        flushTimer = null;
+      }, 150);
+    };
+
+    const isAborted = () => controller.signal.aborted;
+
+    try {
+      await promisePool(
+        combos,
+        5,
+        async ({ model, ndoc }) => {
+          const payload = { modelo: model, ndoc, ...(currentParams ?? {}) };
+          const exec1 = await callUnique(environment, apiType, payload, controller.signal);
+          const exec2 = await callUnique(environment, apiType, payload, controller.signal);
+
+          const meta1 = getMeta(exec1);
+          const meta2 = getMeta(exec2);
+
+          const p1 = getPrintablePayload(exec1);
+          const p2 = getPrintablePayload(exec2);
+
+          const ok1 = Boolean(meta1?.ok);
+          const ok2 = Boolean(meta2?.ok);
+
+          const diffs = diffPaths(p1, p2);
+
+          const row: BatchRow = {
+            id: makeId(),
+            model,
+            ndoc,
+            ok1,
+            ok2,
+            status1: meta1?.status ?? null,
+            status2: meta2?.status ?? null,
+            elapsed1: Number(meta1?.elapsedMs ?? 0),
+            elapsed2: Number(meta2?.elapsedMs ?? 0),
+            diffCount: diffs.length,
+            diffPaths: diffs.slice(0, 200),
+            result1: p1,
+            result2: p2,
+          };
+
+          return row;
+        },
+        (row) => {
+          acc.push(row);
+          scheduleFlush();
+        },
+        (done) => {
+          setProcessed(done);
+          setProgress((done / comparisons) * 100);
+        },
+        isAborted,
+      );
+
+      setRows([...acc]);
+      setProgress(100);
+      setIsOpen(false);
+    } catch {
+      setRows((prev) => [...prev]);
+    } finally {
+      if (flushTimer) clearTimeout(flushTimer);
+      abortRef.current = null;
+      setIsProcessing(false);
+    }
+  };
+
+  const stopBatch = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsProcessing(false);
+  };
 
   return (
     <div>
@@ -121,8 +356,7 @@ export default function BatchTest() {
               Processamento em Lote
             </h1>
             <p className="text-muted-foreground">
-              Teste e valide os retornos das APIs em diferentes ambientes usando
-              processamento em lote.
+              Teste e valide os retornos das APIs em diferentes ambientes usando processamento em lote.
             </p>
           </div>
 
@@ -138,23 +372,53 @@ export default function BatchTest() {
                 className="h-full"
               />
             </div>
+
             <div className="h-full w-full">
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle>Parametrização da Chamada</CardTitle>
                   <CardDescription>
-                    Preencha os parâmetros para testar a API
+                    Ajuste os parâmetros específicos da API selecionada
                   </CardDescription>
                 </CardHeader>
+
                 <CardContent>
-                  <BiDataParamsForm
-                    version="batch"
-                    formData={biDataParams}
-                    setFormData={(
-                      field: keyof BiDataParamsFormData,
-                      value: BiDataParamsFormData[keyof BiDataParamsFormData],
-                    ) => handleBiDataChange(field, value)}
-                  />
+                  {apiType === "bi-data" && (
+                    <BiDataParamsForm
+                      version="batch"
+                      formData={currentParams as BiDataParamsFormData}
+                      setFormData={(field, value) =>
+                        updateApiParams<BiDataParamsFormData, any>("bi-data", field, value)
+                      }
+                    />
+                  )}
+
+                  {apiType === "ci-data" && (
+                    <CiDataParamsForm
+                      formData={currentParams as CiDataParamsFormData}
+                      setFormData={(field, value) =>
+                        updateApiParams<CiDataParamsFormData, any>("ci-data", field, value)
+                      }
+                    />
+                  )}
+
+                  {apiType === "bi-orchestrator" && (
+                    <BiOrchestratorParamsForm
+                      formData={currentParams as BiOrchestratorParamsFormData}
+                      setFormData={(field, value) =>
+                        updateApiParams<BiOrchestratorParamsFormData, any>("bi-orchestrator", field, value)
+                      }
+                    />
+                  )}
+
+                  {apiType === "ci-orchestrator" && (
+                    <CiOrchestratorParamsForm
+                      formData={currentParams as CiOrchestratorParamsFormData}
+                      setFormData={(field, value) =>
+                        updateApiParams<CiOrchestratorParamsFormData, any>("ci-orchestrator", field, value)
+                      }
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -171,113 +435,46 @@ export default function BatchTest() {
                     </CardDescription>
                   )}
                 </div>
+
                 <CollapsibleTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Alternar detalhes"
-                  >
+                  <Button variant="outline" size="icon" className="size-8" aria-label="Alternar detalhes">
                     <ChevronsUpDown />
                   </Button>
                 </CollapsibleTrigger>
               </CardHeader>
+
               <CollapsibleContent>
-                <CardContent className="space-y-8">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="documents-slider">
-                        Quantidade de Documentos
-                      </Label>
-                      <span className="text-sm font-medium">
-                        {numDocuments[0]}
-                      </span>
-                    </div>
-                    <Slider
-                      id="documents-slider"
-                      value={numDocuments}
-                      onValueChange={setNumDocuments}
-                      min={1}
-                      max={100}
-                      step={1}
-                      className="w-full"
-                    />
-                    {renderMarks([1, 25, 50, 75, 100], 1, 100)}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="models-slider">
-                        Quantidade de Modelos
-                      </Label>
-                      <span className="text-sm font-medium">
-                        {numModels[0]}
-                      </span>
-                    </div>
-                    <Slider
-                      id="models-slider"
-                      value={numModels}
-                      onValueChange={setNumModels}
-                      min={1}
-                      max={20}
-                      step={1}
-                      className="w-full"
-                    />
-                    {renderMarks([1, 5, 10, 15, 20], 1, 20)}
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm font-medium">Total de Testes</p>
-                        <p className="text-xs text-muted-foreground">
-                          {numDocuments[0]} documentos × {numModels[0]} modelos
-                          × 2 execuções
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">
-                          {numDocuments[0] * numModels[0]}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          comparações
-                        </p>
-                      </div>
-                    </div>
-
-                    {isProcessing && (
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>Processando...</span>
-                          <span>{progress.toFixed(0)}%</span>
-                        </div>
-                        <Progress value={progress} />
-                      </div>
-                    )}
-
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      onClick={() => {
-                        setIsProcessing(true);
-                        setProgress(0);
-                      }}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <>Processando...</>
-                      ) : (
-                        <>
-                          <PlayCircle className="mr-2 h-5 w-5" />
-                          Iniciar Processamento em Lote
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                <CardContent>
+                  <BatchConfigForm
+                    numDocuments={numDocuments}
+                    setNumDocuments={setNumDocuments}
+                    numModels={numModels}
+                    setNumModels={setNumModels}
+                    maxDocuments={maxDocuments}
+                    maxModels={maxModels}
+                    isProcessing={isProcessing}
+                    progress={progress}
+                    processed={processed}
+                    total={total}
+                    onStart={startBatch}
+                    onStop={stopBatch}
+                  />
                 </CardContent>
               </CollapsibleContent>
             </Card>
           </Collapsible>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Resultados da Comparação</CardTitle>
+              <CardDescription>
+                Comparação entre duas execuções consecutivas para cada combinação de modelo e documento
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BatchResultsTable rows={rows} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

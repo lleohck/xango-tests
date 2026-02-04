@@ -1,5 +1,3 @@
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import SwitchChoiceCard from "@/components/ui/switch-choice-card";
 
 export type BiDataParamsFormData = {
@@ -22,22 +20,15 @@ export default function BiDataParamsForm({
   formData,
   setFormData,
 }: BiDataParamsFormProps) {
-  const handleChange = <K extends keyof BiDataParamsFormData>(
-    field: K,
-    value: BiDataParamsFormData[K],
-  ) => {
-    setFormData(field, value);
-  };
-
   const unique = (
     <div className="grid gap-4">
       <SwitchChoiceCard
         title="Versão do modelo"
-        description=" Alterne entre v2 (estável) e v3 (experimental)"
+        description="Alterne entre v2 (estável) e v3 (experimental)"
         id="version"
         checked={formData.version !== "v2"}
         onCheckedChange={(checked) =>
-          handleChange("version", checked ? "v3" : "v2")
+          setFormData("version", checked ? "v3" : "v2")
         }
       />
       <SwitchChoiceCard
@@ -45,65 +36,40 @@ export default function BiDataParamsForm({
         description="Inclui detalhes explicativos na resposta."
         id="explainer"
         checked={formData.explainer}
-        onCheckedChange={(checked) => handleChange("explainer", checked)}
+        onCheckedChange={(checked) => setFormData("explainer", checked)}
       />
       <SwitchChoiceCard
         title="Is Canary"
         description="Usa a rota canary para validações controladas."
         id="is-canary"
         checked={formData.is_canary}
-        onCheckedChange={(checked) => handleChange("is_canary", checked)}
+        onCheckedChange={(checked) => setFormData("is_canary", checked)}
       />
     </div>
   );
 
   const batch = (
     <div className="grid gap-3 w-full">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
-        <div className="space-y-0.5">
-          <Label htmlFor="version">Versão do modelo</Label>
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            className={
-              formData.version === "v2"
-                ? "text-sm font-medium text-foreground"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            v2
-          </span>
-          <Switch
-            id="version"
-            checked={formData.version === "v3"}
-            onCheckedChange={(checked) =>
-              handleChange("version", checked ? "v3" : "v2")
-            }
-            aria-label="Alternar versão do modelo"
-          />
-          <span
-            className={
-              formData.version === "v3"
-                ? "text-sm font-medium text-foreground"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            v3
-          </span>
-        </div>
-      </div>
+      <SwitchChoiceCard
+        title="Versão do modelo"
+        id="version"
+        checked={formData.version !== "v2"}
+        onCheckedChange={(checked) =>
+          setFormData("version", checked ? "v3" : "v2")
+        }
+      />
       <div className="flex items-center gap-2">
         <SwitchChoiceCard
           title="Explainer"
           id="explainer"
           checked={formData.explainer}
-          onCheckedChange={(checked) => handleChange("explainer", checked)}
+          onCheckedChange={(checked) => setFormData("explainer", checked)}
         />
         <SwitchChoiceCard
           title="Is Canary"
           id="is-canary"
           checked={formData.is_canary}
-          onCheckedChange={(checked) => handleChange("is_canary", checked)}
+          onCheckedChange={(checked) => setFormData("is_canary", checked)}
         />
       </div>
     </div>
