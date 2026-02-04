@@ -31,42 +31,15 @@ export default function BiDataParamsForm({
 
   const unique = (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card p-4">
-        <div className="space-y-1">
-          <Label htmlFor="version">Versão do modelo</Label>
-          <p className="text-sm text-muted-foreground">
-            Alterne entre v2 (estável) e v3 (experimental).
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span
-            className={
-              formData.version === "v2"
-                ? "text-sm font-medium text-foreground"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            v2
-          </span>
-          <Switch
-            id="version"
-            checked={formData.version === "v3"}
-            onCheckedChange={(checked) =>
-              handleChange("version", checked ? "v3" : "v2")
-            }
-            aria-label="Alternar versão do modelo"
-          />
-          <span
-            className={
-              formData.version === "v3"
-                ? "text-sm font-medium text-foreground"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            v3
-          </span>
-        </div>
-      </div>
+      <SwitchChoiceCard
+        title="Versão do modelo"
+        description=" Alterne entre v2 (estável) e v3 (experimental)"
+        id="version"
+        checked={formData.version === "v2"}
+        onCheckedChange={(checked) =>
+          handleChange("version", checked ? "v2" : "v3")
+        }
+      />
       <SwitchChoiceCard
         title="Explainer"
         description="Inclui detalhes explicativos na resposta."
