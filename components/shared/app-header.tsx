@@ -32,12 +32,13 @@ export default function AppHeader({
   menus = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Operações", href: "/operacoes" },
+    { label: "Operaçõe", href: "/operacoe" },
   ],
 }: {
   logoHref?: string;
   logoSrc?: string;
   appName?: string;
-  menus?: [NavItem, NavItem];
+  menus?: [NavItem, NavItem, NavItem];
 }) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();

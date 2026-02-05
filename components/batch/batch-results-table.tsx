@@ -58,7 +58,6 @@ export default function BatchResultsTable({ rows }: Props) {
       "elapsed1_ms",
       "elapsed2_ms",
       "diffCount",
-      "diffPaths",
     ];
 
     const lines = [
@@ -74,7 +73,6 @@ export default function BatchResultsTable({ rows }: Props) {
           toCsvValue(String(r.elapsed1)),
           toCsvValue(String(r.elapsed2)),
           toCsvValue(String(r.diffCount)),
-          toCsvValue(r.diffPaths.join("|")),
         ].join(","),
       ),
     ].join("\n");
@@ -138,7 +136,6 @@ export default function BatchResultsTable({ rows }: Props) {
               <th className="px-4 py-3 text-center font-medium">T1 (ms)</th>
               <th className="px-4 py-3 text-center font-medium">T2 (ms)</th>
               <th className="px-4 py-3 text-center font-medium">Diffs</th>
-              <th className="px-4 py-3 text-left font-medium">Paths</th>
             </tr>
           </thead>
 
@@ -199,18 +196,11 @@ export default function BatchResultsTable({ rows }: Props) {
                     <td className="px-4 py-3 align-middle text-center font-mono text-xs font-semibold">
                       {r.diffCount}
                     </td>
-
-                    <td className="px-4 py-3 align-middle">
-                      <div className="max-w-[420px] truncate text-xs text-muted-foreground">
-                        {r.diffPaths.slice(0, 6).join(", ")}
-                        {r.diffPaths.length > 6 ? "..." : ""}
-                      </div>
-                    </td>
                   </tr>
 
                   {isOpen ? (
                     <tr className="border-b">
-                      <td colSpan={9} className="px-4 py-4">
+                      <td colSpan={8} className="px-4 py-4">
                         <div className="space-y-3">
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline">

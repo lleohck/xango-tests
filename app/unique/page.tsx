@@ -100,6 +100,7 @@ export default function UniqueTest() {
         menus={[
           { label: "Consulta Unica", href: "/unique" },
           { label: "Processamento em Lote", href: "/batch" },
+          { label: "Comparação de Lotes", href: "/compare" },
         ]}
       />
 

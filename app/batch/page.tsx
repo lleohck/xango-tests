@@ -446,6 +446,7 @@ export default function BatchTest() {
         menus={[
           { label: "Consulta Unica", href: "/unique" },
           { label: "Processamento em Lote", href: "/batch" },
+          { label: "Comparação de Lotes", href: "/compare" },
         ]}
       />
       <div className="bg-background px-6 py-5">
