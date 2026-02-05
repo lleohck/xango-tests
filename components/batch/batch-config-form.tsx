@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { PlayCircle, Square } from "lucide-react";
+import { Ban, PlayCircle, Square } from "lucide-react";
 
 type Props = {
   numDocuments: number[];
@@ -150,22 +150,19 @@ export default function BatchConfigForm({
           <Button
             className="w-full"
             size="lg"
-            onClick={onStart}
-            disabled={isProcessing}
+            onClick={!isProcessing ? onStart : onStop}
           >
-            <PlayCircle className="mr-2 h-5 w-5" />
-            Iniciar Processamento em Lote
-          </Button>
-
-          <Button
-            className=""
-            size="lg"
-            variant="outline"
-            onClick={onStop}
-            disabled={!isProcessing}
-            title="Parar processamento"
-          >
-            <Square className="h-5 w-5" />
+            {!isProcessing ? (
+              <>
+                <PlayCircle className="mr-2 h-5 w-5" />
+                Iniciar Processamento em Lote
+              </>
+            ) : (
+              <>
+                <Ban className="mr-2 h-5 w-5" />
+                Cancelar Processamento
+              </>
+            )}
           </Button>
         </div>
       </div>

@@ -73,7 +73,7 @@ export default function AppHeader({
             height={30}
             priority
           />
-          <span className="hidden text-xl font-semibold sm:inline">
+          <span className="hidden text-xl font-semibold sm:inline truncate">
             {appName}
           </span>
         </Link>
