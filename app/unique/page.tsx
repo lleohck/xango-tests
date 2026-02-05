@@ -98,7 +98,7 @@ export default function UniqueTest() {
         appName="Xango API Testing"
         logoSrc="/serasa-logo.svg"
         menus={[
-          { label: "Consulta Unica", href: "/unique" },
+          { label: "Consulta Única", href: "/unique" },
           { label: "Processamento em Lote", href: "/batch" },
           { label: "Comparação de Lotes", href: "/compare" },
         ]}

@@ -58,6 +58,8 @@ export default function BatchResultsTable({ rows }: Props) {
       "elapsed1_ms",
       "elapsed2_ms",
       "diffCount",
+      "result1",
+      "result2",
     ];
 
     const lines = [
@@ -73,6 +75,8 @@ export default function BatchResultsTable({ rows }: Props) {
           toCsvValue(String(r.elapsed1)),
           toCsvValue(String(r.elapsed2)),
           toCsvValue(String(r.diffCount)),
+          toCsvValue(r.result1),
+          toCsvValue(r.result2),
         ].join(","),
       ),
     ].join("\n");

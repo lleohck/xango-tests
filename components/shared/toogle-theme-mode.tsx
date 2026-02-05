@@ -41,10 +41,10 @@ export function ModeToggle() {
         >
           {/* Fallback padrão */}
           <DropdownMenuRadioItem value="light">
-            Light (fallback)
+            Claro (padrão)
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
-            Dark (fallback)
+            Escuro (padrão)
           </DropdownMenuRadioItem>
 
           <DropdownMenuSeparator />
@@ -59,7 +59,7 @@ export function ModeToggle() {
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">Sistema</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

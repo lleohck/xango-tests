@@ -32,7 +32,7 @@ export default function AppHeader({
   menus = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Operações", href: "/operacoes" },
-    { label: "Operaçõe", href: "/operacoe" },
+    { label: "Operações", href: "/operacoes" },
   ],
 }: {
   logoHref?: string;
@@ -163,7 +163,7 @@ export default function AppHeader({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuRadioItem value="system">
-                  System
+                  Sistema
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
 

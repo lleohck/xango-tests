@@ -31,6 +31,8 @@ type BatchCsvRow = {
   elapsed1: number;
   elapsed2: number;
   diffCount: number;
+  result1: unknown;
+  result2: unknown;
 };
 
 type ComparisonRow = {
@@ -38,16 +40,8 @@ type ComparisonRow = {
   ndoc: string;
   before: BatchCsvRow | null;
   after: BatchCsvRow | null;
-  beforeOk1: boolean | null;
-  beforeOk2: boolean | null;
-  afterOk1: boolean | null;
-  afterOk2: boolean | null;
-  ok1Status: "improved" | "regressed" | "same" | "na";
-  ok2Status: "improved" | "regressed" | "same" | "na";
-  beforeDiff: number | null;
-  afterDiff: number | null;
-  diffDelta: number | null;
-  diffStatus: "improved" | "regressed" | "same" | "na";
+  result1Equal: boolean | null;
+  result2Equal: boolean | null;
   beforeElapsed1: number | null;
   beforeElapsed2: number | null;
   afterElapsed1: number | null;
@@ -74,6 +68,8 @@ const REQUIRED_HEADERS = [
   "elapsed1",
   "elapsed2",
   "diffCount",
+  "result1",
+  "result2",
 ];
 
 const HEADER_MAP: Record<string, keyof BatchCsvRow> = {
@@ -90,10 +86,15 @@ const HEADER_MAP: Record<string, keyof BatchCsvRow> = {
   elapsed1: "elapsed1",
   elapsed2: "elapsed2",
   diffcount: "diffCount",
+  result1: "result1",
+  result2: "result2",
 };
 
 function normalizeHeader(header: string) {
-  return header.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return header
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function splitCsvLine(line: string): string[] {
@@ -143,6 +144,16 @@ function parseNullableNumber(raw: string | undefined) {
   return Number.isFinite(value) ? value : null;
 }
 
+function parseResultCell(raw: string | undefined) {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
 function coerceBatchRow(
   raw: Partial<Record<keyof BatchCsvRow, string>>,
 ): BatchCsvRow | null {
@@ -160,14 +171,13 @@ function coerceBatchRow(
     elapsed1: parseNumber(raw.elapsed1),
     elapsed2: parseNumber(raw.elapsed2),
     diffCount: parseNumber(raw.diffCount),
+    result1: parseResultCell(raw.result1),
+    result2: parseResultCell(raw.result2),
   };
 }
 
 function parseBatchCsv(text: string): ParsedCsv {
-  const normalized = text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .trim();
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
 
   if (!normalized) {
     return { rows: [], invalidRows: 0, missingHeaders: REQUIRED_HEADERS };
@@ -184,8 +194,8 @@ function parseBatchCsv(text: string): ParsedCsv {
   }
 
   rawHeaders[0] = rawHeaders[0].replace(/^\uFEFF/, "");
-  const headerKeys = rawHeaders.map((header) =>
-    HEADER_MAP[normalizeHeader(header)] ?? null,
+  const headerKeys = rawHeaders.map(
+    (header) => HEADER_MAP[normalizeHeader(header)] ?? null,
   );
 
   const missingHeaders = REQUIRED_HEADERS.filter(
@@ -251,11 +261,42 @@ function getDeltaStatus(delta: number | null) {
   return "same" as const;
 }
 
-function getOkStatus(beforeOk: boolean | null, afterOk: boolean | null) {
-  if (beforeOk === null || afterOk === null) return "na" as const;
-  if (beforeOk === afterOk) return "same" as const;
-  if (!beforeOk && afterOk) return "improved" as const;
-  return "regressed" as const;
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (!isObject(a) || !isObject(b)) return false;
+
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  if (Array.isArray(b)) return false;
+
+  const keysA = Object.keys(a).sort();
+  const keysB = Object.keys(b).sort();
+  if (keysA.length !== keysB.length) return false;
+  for (let i = 0; i < keysA.length; i += 1) {
+    if (keysA[i] !== keysB[i]) return false;
+    const key = keysA[i];
+    if (
+      !deepEqual(
+        (a as Record<string, unknown>)[key],
+        (b as Record<string, unknown>)[key],
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 const STATUS_STYLES = {
@@ -291,7 +332,7 @@ export default function BatchComparisonPage() {
 
       if (parsed.missingHeaders.length > 0) {
         setError(
-          `Arquivo ${type === "before" ? "ANTES" : "DEPOIS"} invalido. ` +
+          `Arquivo ${type === "before" ? "ANTES" : "DEPOIS"} inválido. ` +
             `Esperado CSV do processamento em lote (campos: ${parsed.missingHeaders.join(", ")}).`,
         );
         return;
@@ -331,25 +372,16 @@ export default function BatchComparisonPage() {
       const after = afterMap.get(key);
       if (!after) return;
 
-      const beforeOk1 = before ? before.ok1 : null;
-      const beforeOk2 = before ? before.ok2 : null;
-      const afterOk1 = after ? after.ok1 : null;
-      const afterOk2 = after ? after.ok2 : null;
-      const ok1Status = getOkStatus(beforeOk1, afterOk1);
-      const ok2Status = getOkStatus(beforeOk2, afterOk2);
-
-      const beforeDiff = before ? before.diffCount : null;
-      const afterDiff = after ? after.diffCount : null;
-      const diffComparable =
-        beforeOk1 === true &&
-        beforeOk2 === true &&
-        afterOk1 === true &&
-        afterOk2 === true &&
-        beforeDiff !== null &&
-        afterDiff !== null;
-      const diffDelta = diffComparable ? afterDiff - beforeDiff : null;
-      const diffStatus = diffComparable ? getDeltaStatus(diffDelta) : "na";
-
+      const result1Comparable =
+        before?.result1 !== null && after?.result1 !== null;
+      const result2Comparable =
+        before?.result2 !== null && after?.result2 !== null;
+      const result1Equal = result1Comparable
+        ? deepEqual(before?.result1, after?.result1)
+        : null;
+      const result2Equal = result2Comparable
+        ? deepEqual(before?.result2, after?.result2)
+        : null;
       const beforeElapsed1 = before ? before.elapsed1 : null;
       const beforeElapsed2 = before ? before.elapsed2 : null;
       const afterElapsed1 = after ? after.elapsed1 : null;
@@ -370,16 +402,8 @@ export default function BatchComparisonPage() {
         ndoc: before?.ndoc ?? after?.ndoc ?? "",
         before,
         after,
-        beforeOk1,
-        beforeOk2,
-        afterOk1,
-        afterOk2,
-        ok1Status,
-        ok2Status,
-        beforeDiff,
-        afterDiff,
-        diffDelta,
-        diffStatus,
+        result1Equal,
+        result2Equal,
         beforeElapsed1,
         beforeElapsed2,
         afterElapsed1,
@@ -407,66 +431,35 @@ export default function BatchComparisonPage() {
     const headers = [
       "model",
       "ndoc",
-      "before_ok1",
-      "before_ok2",
-      "after_ok1",
-      "after_ok2",
-      "ok1_status",
-      "ok2_status",
-      "before_diffCount",
-      "after_diffCount",
-      "diff_delta",
-      "diff_status",
+      "result1_equal",
+      "result2_equal",
       "before_elapsed1_ms",
       "before_elapsed2_ms",
       "after_elapsed1_ms",
       "after_elapsed2_ms",
       "elapsed1_delta_ms",
       "elapsed2_delta_ms",
-      "elapsed1_status",
-      "elapsed2_status",
-      "before_status1",
-      "before_status2",
-      "after_status1",
-      "after_status2",
     ];
 
     const rows = comparisonResults.map((result) => {
-      const beforeStatus1 = result.before?.status1 ?? "";
-      const beforeStatus2 = result.before?.status2 ?? "";
-      const afterStatus1 = result.after?.status1 ?? "";
-      const afterStatus2 = result.after?.status2 ?? "";
-
       return [
         result.model,
         result.ndoc,
-        result.beforeOk1 === null ? "" : String(result.beforeOk1),
-        result.beforeOk2 === null ? "" : String(result.beforeOk2),
-        result.afterOk1 === null ? "" : String(result.afterOk1),
-        result.afterOk2 === null ? "" : String(result.afterOk2),
-        result.ok1Status,
-        result.ok2Status,
-        result.beforeDiff ?? "",
-        result.afterDiff ?? "",
-        result.diffDelta ?? "",
-        result.diffStatus,
+        result.result1Equal === null ? "" : String(result.result1Equal),
+        result.result2Equal === null ? "" : String(result.result2Equal),
         result.beforeElapsed1 ?? "",
         result.beforeElapsed2 ?? "",
         result.afterElapsed1 ?? "",
         result.afterElapsed2 ?? "",
         result.elapsed1Delta ?? "",
         result.elapsed2Delta ?? "",
-        result.elapsed1Status,
-        result.elapsed2Status,
-        beforeStatus1,
-        beforeStatus2,
-        afterStatus1,
-        afterStatus2,
       ];
     });
 
     const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","),
+      )
       .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -508,445 +501,316 @@ export default function BatchComparisonPage() {
   }, [comparisonResults]);
 
   return (
-    <>
+    <div>
       <AppHeader
         appName="Xango API Testing"
         logoSrc="/serasa-logo.svg"
         menus={[
-          { label: "Consulta Unica", href: "/unique" },
+          { label: "Consulta Única", href: "/unique" },
           { label: "Processamento em Lote", href: "/batch" },
-          { label: "Comparacao de Lotes", href: "/compare" },
+          { label: "Comparação de Lotes", href: "/compare" },
         ]}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>Comparacao de Lotes</CardTitle>
-          <CardDescription>
-            Carregue dois CSVs exportados do processamento em lote para comparar
-            os resultados antes e depois das alteracoes na API.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <Label>Arquivo ANTES das alteracoes</Label>
-              <div className="rounded-lg border-2 border-dashed border-slate-300 p-6 transition-colors hover:border-slate-400">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, "before");
-                  }}
-                  className="hidden"
-                  id="before-file"
-                />
-                <label
-                  htmlFor="before-file"
-                  className="flex cursor-pointer flex-col items-center justify-center"
-                >
-                  <Upload className="mb-2 h-8 w-8 text-slate-400" />
-                  <p className="text-sm font-medium text-slate-700">
-                    {beforeFile ? beforeFile.name : "Clique para selecionar"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">CSV (max 10MB)</p>
-                </label>
-              </div>
-              {beforeFile && (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{beforeRows.length} registros validos</span>
-                  {beforeInvalid > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {beforeInvalid} invalidos
-                    </Badge>
-                  )}
-                  {beforeDuplicates > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {beforeDuplicates} duplicados
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <Label>Arquivo DEPOIS das alteracoes</Label>
-              <div className="rounded-lg border-2 border-dashed border-slate-300 p-6 transition-colors hover:border-slate-400">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, "after");
-                  }}
-                  className="hidden"
-                  id="after-file"
-                />
-                <label
-                  htmlFor="after-file"
-                  className="flex cursor-pointer flex-col items-center justify-center"
-                >
-                  <Upload className="mb-2 h-8 w-8 text-slate-400" />
-                  <p className="text-sm font-medium text-slate-700">
-                    {afterFile ? afterFile.name : "Clique para selecionar"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">CSV (max 10MB)</p>
-                </label>
-              </div>
-              {afterFile && (
-                <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{afterRows.length} registros validos</span>
-                  {afterInvalid > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {afterInvalid} invalidos
-                    </Badge>
-                  )}
-                  {afterDuplicates > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {afterDuplicates} duplicados
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
+      <div className="bg-background px-6 py-5">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Comparação de Lotes
+            </h1>
+            <p className="text-muted-foreground">
+              Carregue dois CSVs exportados do processamento em lote para
+              comparar os resultados antes e depois das alterações na API.
+            </p>
           </div>
+          <Card>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-3">
+                  <Label>Arquivo ANTES das Alterações</Label>
+                  <div className="rounded-lg border-2 border-dashed border-slate-300 p-6 transition-colors hover:border-slate-400">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, "before");
+                      }}
+                      className="hidden"
+                      id="before-file"
+                    />
+                    <label
+                      htmlFor="before-file"
+                      className="flex cursor-pointer flex-col items-center justify-center"
+                    >
+                      <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      <p className="text-sm font-medium text-slate-700">
+                        {beforeFile
+                          ? beforeFile.name
+                          : "Clique para selecionar"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        CSV (máx. 10 MB)
+                      </p>
+                    </label>
+                  </div>
+                  {beforeFile && (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{beforeRows.length} registros válidos</span>
+                      {beforeInvalid > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {beforeInvalid} inválidos
+                        </Badge>
+                      )}
+                      {beforeDuplicates > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {beforeDuplicates} duplicados
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+                <div className="space-y-3">
+                  <Label>Arquivo DEPOIS das Alterações</Label>
+                  <div className="rounded-lg border-2 border-dashed border-slate-300 p-6 transition-colors hover:border-slate-400">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, "after");
+                      }}
+                      className="hidden"
+                      id="after-file"
+                    />
+                    <label
+                      htmlFor="after-file"
+                      className="flex cursor-pointer flex-col items-center justify-center"
+                    >
+                      <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      <p className="text-sm font-medium text-slate-700">
+                        {afterFile ? afterFile.name : "Clique para selecionar"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        CSV (máx. 10 MB)
+                      </p>
+                    </label>
+                  </div>
+                  {afterFile && (
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{afterRows.length} registros válidos</span>
+                      {afterInvalid > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {afterInvalid} inválidos
+                        </Badge>
+                      )}
+                      {afterDuplicates > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {afterDuplicates} duplicados
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="border-t pt-4">
+                <Button
+                  onClick={compareData}
+                  className="w-full"
+                  size="lg"
+                  disabled={!beforeFile || !afterFile}
+                >
+                  <FileText className="mr-2 h-5 w-5" />
+                  Comparar Lotes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {stats && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumo</CardTitle>
+                <CardDescription>
+                  Visão geral das diferenças entre os dois lotes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">pares: {stats.matched}</Badge>
+                  <Badge variant="outline" className={STATUS_STYLES.improved}>
+                    T1 melhorou: {stats.elapsed1Improved}
+                  </Badge>
+                  <Badge variant="outline" className={STATUS_STYLES.regressed}>
+                    T1 piorou: {stats.elapsed1Regressed}
+                  </Badge>
+                  <Badge variant="outline" className={STATUS_STYLES.improved}>
+                    T2 melhorou: {stats.elapsed2Improved}
+                  </Badge>
+                  <Badge variant="outline" className={STATUS_STYLES.regressed}>
+                    T2 piorou: {stats.elapsed2Regressed}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <div className="border-t pt-4">
-            <Button
-              onClick={compareData}
-              className="w-full"
-              size="lg"
-              disabled={!beforeFile || !afterFile}
-            >
-              <FileText className="mr-2 h-5 w-5" />
-              Comparar Resultados
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {stats && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo</CardTitle>
-            <CardDescription>
-              Visao geral das diferencas entre os dois lotes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">pares: {stats.matched}</Badge>
-              <Badge
-                variant="outline"
-                className={STATUS_STYLES.improved}
-              >
-                T1 melhorou: {stats.elapsed1Improved}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={STATUS_STYLES.regressed}
-              >
-                T1 piorou: {stats.elapsed1Regressed}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={STATUS_STYLES.improved}
-              >
-                T2 melhorou: {stats.elapsed2Improved}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={STATUS_STYLES.regressed}
-              >
-                T2 piorou: {stats.elapsed2Regressed}
-              </Badge>
-              <Badge variant="outline">total: {stats.total}</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {comparisonResults.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle>Resultados da Comparacao</CardTitle>
-                <CardDescription>
-                  Comparacao detalhada por modelo e documento.
-                </CardDescription>
-              </div>
-              <Button onClick={downloadComparison} variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Baixar CSV
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-auto rounded-lg border">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-slate-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium">Modelo</th>
-                    <th className="px-4 py-3 text-left font-medium">
-                      Documento
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Diffs Antes
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Diffs Depois
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">Δ Diffs</th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      OK1 Antes
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      OK1 Depois
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status OK1
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      OK2 Antes
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      OK2 Depois
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status OK2
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status1 Antes
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status2 Antes
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status1 Depois
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Status2 Depois
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      T1 Antes (ms)
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      T2 Antes (ms)
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      T1 Depois (ms)
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      T2 Depois (ms)
-                    </th>
-                    <th className="px-4 py-3 text-center font-medium">Δ T1</th>
-                    <th className="px-4 py-3 text-center font-medium">Δ T2</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonResults.map((result) => {
-                    const ok1Badge = result.ok1Status;
-                    const ok2Badge = result.ok2Status;
-                    const diffBadge = result.diffStatus;
-                    const elapsed1Badge = result.elapsed1Status;
-                    const elapsed2Badge = result.elapsed2Status;
-
-                    return (
-                      <tr
-                        key={`${result.model}-${result.ndoc}`}
-                        className="border-b hover:bg-slate-50"
-                      >
-                        <td className="px-4 py-3">{result.model}</td>
-                        <td className="px-4 py-3 font-mono text-xs">
-                          {result.ndoc}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.beforeDiff)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.afterDiff)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          <Badge variant="outline" className={STATUS_STYLES[diffBadge]}>
-                            {formatDelta(result.diffDelta)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {result.beforeOk1 === null ? (
-                            "-"
-                          ) : result.beforeOk1 ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              OK
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Falha
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {result.afterOk1 === null ? (
-                            "-"
-                          ) : result.afterOk1 ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              OK
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Falha
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {ok1Badge === "improved" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              Melhorou
-                            </Badge>
-                          ) : ok1Badge === "regressed" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Piorou
-                            </Badge>
-                          ) : ok1Badge === "same" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.same}>
-                              Igual
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.na}>
-                              -
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {result.beforeOk2 === null ? (
-                            "-"
-                          ) : result.beforeOk2 ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              OK
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Falha
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {result.afterOk2 === null ? (
-                            "-"
-                          ) : result.afterOk2 ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              OK
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Falha
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {ok2Badge === "improved" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.improved}>
-                              Melhorou
-                            </Badge>
-                          ) : ok2Badge === "regressed" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                              Piorou
-                            </Badge>
-                          ) : ok2Badge === "same" ? (
-                            <Badge variant="outline" className={STATUS_STYLES.same}>
-                              Igual
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className={STATUS_STYLES.na}>
-                              -
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.before?.status1 ?? null)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.before?.status2 ?? null)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.after?.status1 ?? null)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.after?.status2 ?? null)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.beforeElapsed1, 0)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.beforeElapsed2, 0)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.afterElapsed1, 0)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          {formatNumber(result.afterElapsed2, 0)}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          <Badge
-                            variant="outline"
-                            className={STATUS_STYLES[elapsed1Badge]}
-                          >
-                            {formatDelta(result.elapsed1Delta, 0)}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-xs">
-                          <Badge
-                            variant="outline"
-                            className={STATUS_STYLES[elapsed2Badge]}
-                          >
-                            {formatDelta(result.elapsed2Delta, 0)}
-                          </Badge>
-                        </td>
+          {comparisonResults.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Resultados da Comparação</CardTitle>
+                    <CardDescription>
+                      Comparação detalhada por modelo e documento.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={downloadComparison}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Baixar CSV
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-auto rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-slate-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium">
+                          Modelo
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium">
+                          Documento
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          Resultado 1 igual
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          Resultado 2 igual
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          T1 Antes (ms)
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          T2 Antes (ms)
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          T1 Depois (ms)
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          T2 Depois (ms)
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          Δ T1
+                        </th>
+                        <th className="px-4 py-3 text-center font-medium">
+                          Δ T2
+                        </th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {comparisonResults.map((result) => {
+                        const elapsed1Badge = result.elapsed1Status;
+                        const elapsed2Badge = result.elapsed2Status;
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className={STATUS_STYLES.improved}>
-                  Melhorou
-                </Badge>
-                <span className="text-muted-foreground">
-                  Reducao de diffs, OK ou tempo menor
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className={STATUS_STYLES.regressed}>
-                  Piorou
-                </Badge>
-                <span className="text-muted-foreground">
-                  Aumento de diffs, OK caiu ou tempo maior
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className={STATUS_STYLES.same}>
-                  Igual
-                </Badge>
-                <span className="text-muted-foreground">
-                  Sem alteracao relevante
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </>
+                        return (
+                          <tr
+                            key={`${result.model}-${result.ndoc}`}
+                            className="border-b hover:bg-slate-50"
+                          >
+                            <td className="px-4 py-3">{result.model}</td>
+                            <td className="px-4 py-3 font-mono text-xs">
+                              {result.ndoc}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {result.result1Equal === null ? (
+                                "-"
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    result.result1Equal
+                                      ? STATUS_STYLES.improved
+                                      : STATUS_STYLES.regressed
+                                  }
+                                >
+                                  {result.result1Equal
+                                    ? "Iguais"
+                                    : "Diferentes"}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {result.result2Equal === null ? (
+                                "-"
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    result.result2Equal
+                                      ? STATUS_STYLES.improved
+                                      : STATUS_STYLES.regressed
+                                  }
+                                >
+                                  {result.result2Equal
+                                    ? "Iguais"
+                                    : "Diferentes"}
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              {formatNumber(result.beforeElapsed1, 0)}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              {formatNumber(result.beforeElapsed2, 0)}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              {formatNumber(result.afterElapsed1, 0)}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              {formatNumber(result.afterElapsed2, 0)}
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              <Badge
+                                variant="outline"
+                                className={STATUS_STYLES[elapsed1Badge]}
+                              >
+                                {formatDelta(result.elapsed1Delta, 0)}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-center font-mono text-xs">
+                              <Badge
+                                variant="outline"
+                                className={STATUS_STYLES[elapsed2Badge]}
+                              >
+                                {formatDelta(result.elapsed2Delta, 0)}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
