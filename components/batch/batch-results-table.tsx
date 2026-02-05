@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import JsonViewer from "@/components/shared/json-viewer";
+import { ApiType, Environment } from "@/types/shared";
 
 export type BatchRow = {
   id: string;
@@ -23,6 +24,8 @@ export type BatchRow = {
 };
 
 type Props = {
+  env: Environment;
+  api: ApiType;
   rows: BatchRow[];
 };
 
@@ -32,7 +35,7 @@ function toCsvValue(v: any) {
   return `"${escaped}"`;
 }
 
-export default function BatchResultsTable({ rows }: Props) {
+export default function BatchResultsTable({ env, api, rows }: Props) {
   const [openRow, setOpenRow] = useState<string | null>(null);
 
   const stats = useMemo(() => {
@@ -84,8 +87,24 @@ export default function BatchResultsTable({ rows }: Props) {
     const blob = new Blob([lines], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
+    const d = new Date();
+    const dateStr = [
+      String(d.getDate()).padStart(2, "0"),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      d.getFullYear(),
+    ].join("-");
+
+    const timeStr = [
+      String(d.getHours()).padStart(2, "0"),
+      String(d.getMinutes()).padStart(2, "0"),
+      String(d.getSeconds()).padStart(2, "0"),
+    ].join("-");
+
     link.setAttribute("href", url);
-    link.setAttribute("download", `batch_comparison_${Date.now()}.csv`);
+    link.setAttribute(
+      "download",
+      `${api.toUpperCase()}_${env}_batch_result_${dateStr}_${timeStr}.csv`,
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();

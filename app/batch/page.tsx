@@ -239,6 +239,7 @@ async function promisePool<T, R>(
 
 export default function BatchTest() {
   const [isOpen, setIsOpen] = useState(true);
+  const [isOpenResult, setIsOpenResult] = useState(true);
 
   const [environment, setEnvironment] = useState<Environment>("DEV");
   const [currentEnvironment, setCurrentEnvironment] =
@@ -423,6 +424,7 @@ export default function BatchTest() {
       setRows([...acc]);
       setProgress(100);
       setIsOpen(false);
+      setIsOpenResult(true);
     } catch {
       setRows((prev) => [...prev]);
     } finally {
@@ -592,18 +594,45 @@ export default function BatchTest() {
             </Card>
           </Collapsible>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Resultados da Comparação</CardTitle>
-              <CardDescription>
-                Comparação entre duas execuções consecutivas para cada
-                combinação de modelo e documento
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BatchResultsTable rows={rows} />
-            </CardContent>
-          </Card>
+          <Collapsible open={isOpenResult} onOpenChange={setIsOpenResult}>
+            <Card>
+              <CardHeader
+                onClick={() => setIsOpenResult(!isOpenResult)}
+                className="flex flex-row items-center justify-between gap-3"
+              >
+                <div>
+                  <CardTitle>Resultados da Comparação</CardTitle>
+                  {isOpenResult && (
+                    <CardDescription className="mt-2">
+                      Comparação entre duas execuções consecutivas para cada
+                      combinação de modelo e documento
+                    </CardDescription>
+                  )}
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Alternar detalhes"
+                  >
+                    <ChevronsUpDown />
+                  </Button>
+                </CollapsibleTrigger>
+              </CardHeader>
+              {rows.length > 0 && (
+                <CollapsibleContent>
+                  <CardContent>
+                    <BatchResultsTable
+                      env={environment}
+                      api={apiType}
+                      rows={rows}
+                    />
+                  </CardContent>
+                </CollapsibleContent>
+              )}
+            </Card>
+          </Collapsible>
         </div>
       </div>
     </div>
