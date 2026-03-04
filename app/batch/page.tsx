@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
 import {
@@ -40,6 +41,11 @@ import BatchConfigForm from "@/components/batch/batch-config-form";
 import BatchResultsTable, {
   BatchRow,
 } from "@/components/batch/batch-results-table";
+import {
+  BatchCustomizationData,
+  readBatchCustomization,
+} from "@/lib/batch-customization-storage";
+import { getBatchDefaultLists } from "@/lib/batch-default-config";
 
 type ApiParamsByType = {
   "bi-data": BiDataParamsFormData;
@@ -75,77 +81,6 @@ const defaultParams: ApiParamsByType = {
     is_canary: false,
   } satisfies CiOrchestratorParamsFormData,
 };
-
-type ApiPrefix = "CI" | "BI";
-
-const BATCH_ENV = {
-  CI: {
-    DEV: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_DEV,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_DEV,
-    },
-    UAT: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_UAT,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_UAT,
-    },
-    PRD: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_CI_PRD,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_CI_PRD,
-    },
-  },
-  BI: {
-    DEV: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_DEV,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_DEV,
-    },
-    UAT: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_UAT,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_UAT,
-    },
-    PRD: {
-      documents: process.env.NEXT_PUBLIC_BATCH_DOCUMENTS_BI_PRD,
-      models: process.env.NEXT_PUBLIC_BATCH_MODELS_BI_PRD,
-    },
-  },
-} as const;
-
-function getApiPrefix(apiType: ApiType): ApiPrefix {
-  return apiType.startsWith("ci") ? "CI" : "BI";
-}
-
-function normalizeJsonLikeArray(raw: string) {
-  return raw.trim().replace(/,\s*]/g, "]").replace(/,\s*}/g, "}");
-}
-
-function parseList(raw: string | undefined): string[] {
-  if (!raw) return [];
-  const trimmed = raw.trim();
-  if (!trimmed) return [];
-
-  if (trimmed.startsWith("[")) {
-    const normalized = normalizeJsonLikeArray(trimmed);
-    try {
-      const arr = JSON.parse(normalized);
-      return Array.isArray(arr) ? arr.map(String) : [];
-    } catch {
-      const noBrackets = normalized.replace(/^\[/, "").replace(/]$/, "");
-      return noBrackets
-        .split(",")
-        .map((s) =>
-          s
-            .trim()
-            .replace(/^"(.*)"$/, "$1")
-            .replace(/^'(.*)'$/, "$1"),
-        )
-        .filter(Boolean);
-    }
-  }
-
-  return trimmed
-    .split(/[\n,;]+/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
 
 type ResponseMeta = {
   ok?: boolean;
@@ -262,6 +197,8 @@ export default function BatchTest() {
     useState<EnvironmentConfig>(environments[0]);
 
   const [apiType, setApiType] = useState<ApiType>("bi-data");
+  const [batchCustomization, setBatchCustomization] =
+    useState<BatchCustomizationData>(() => readBatchCustomization());
 
   const [formData, setFormData] = useState<BatchTestFormData>({
     forms: {
@@ -272,13 +209,48 @@ export default function BatchTest() {
     },
   });
 
-  const apiPrefix = useMemo(() => getApiPrefix(apiType), [apiType]);
+  useEffect(() => {
+    const refreshBatchCustomization = () =>
+      setBatchCustomization(readBatchCustomization());
+    window.addEventListener("storage", refreshBatchCustomization);
+    window.addEventListener("focus", refreshBatchCustomization);
 
-  const rawDocs = BATCH_ENV[apiPrefix][environment].documents;
-  const rawModels = BATCH_ENV[apiPrefix][environment].models;
+    return () => {
+      window.removeEventListener("storage", refreshBatchCustomization);
+      window.removeEventListener("focus", refreshBatchCustomization);
+    };
+  }, []);
 
-  const documentsList = useMemo(() => parseList(rawDocs), [rawDocs]);
-  const modelsList = useMemo(() => parseList(rawModels), [rawModels]);
+  const defaultLists = useMemo(
+    () => getBatchDefaultLists(apiType, environment),
+    [apiType, environment],
+  );
+  const defaultDocumentsList = defaultLists.documents;
+  const defaultModelsList = defaultLists.models;
+  const currentCustomization = batchCustomization[apiType][environment];
+  const isCustomizationEnabled = currentCustomization.enabled;
+
+  const documentsList = useMemo(() => {
+    if (currentCustomization.enabled && currentCustomization.documents.length) {
+      return currentCustomization.documents;
+    }
+    return defaultDocumentsList;
+  }, [
+    currentCustomization.documents,
+    currentCustomization.enabled,
+    defaultDocumentsList,
+  ]);
+
+  const modelsList = useMemo(() => {
+    if (currentCustomization.enabled && currentCustomization.models.length) {
+      return currentCustomization.models;
+    }
+    return defaultModelsList;
+  }, [
+    currentCustomization.enabled,
+    currentCustomization.models,
+    defaultModelsList,
+  ]);
 
   const maxDocuments = Math.max(1, Math.min(100, documentsList.length || 100));
   const maxModels = Math.max(1, Math.min(20, modelsList.length || 20));
@@ -562,7 +534,14 @@ export default function BatchTest() {
                 className="flex flex-row items-center justify-between gap-3"
               >
                 <div>
-                  <CardTitle>Configuração do Lote</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>Configuração do Lote</CardTitle>
+                    {isCustomizationEnabled && (
+                      <Badge className="bg-purple-800 text-white hover:bg-purple-800">
+                        Personalização Habilitada
+                      </Badge>
+                    )}
+                  </div>
                   {isOpen && (
                     <CardDescription className="mt-2">
                       Configure a quantidade de documentos e modelos para testar

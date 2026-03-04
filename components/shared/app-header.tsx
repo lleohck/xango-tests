@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronDown, LogOut, Moon, Sun } from "lucide-react";
+import { ChevronDown, LogOut, Moon, Settings, Sun } from "lucide-react";
 
 import { capitalizeWords, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -146,6 +146,13 @@ export default function AppHeader({
               >
                 {isDarkTheme ? <Sun /> : <Moon />}
                 {isDarkTheme ? "Modo Claro" : "Modo Escuro"}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild>
+                <Link href="/batch/personalization">
+                  <Settings />
+                  Personalizar Lote
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
