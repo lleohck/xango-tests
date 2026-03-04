@@ -296,6 +296,15 @@ export default function BatchTest() {
     setNumModels(([v]) => [Math.max(1, Math.min(v ?? 10, maxModels))]);
   }, [maxModels]);
 
+  const selectedModels = useMemo(() => {
+    const modelsN = Math.max(1, Math.min(numModels[0] ?? 1, maxModels));
+    return (
+      modelsList.length
+        ? modelsList
+        : Array.from({ length: 20 }).map((_, i) => `model-${i + 1}`)
+    ).slice(0, modelsN);
+  }, [maxModels, modelsList, numModels]);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [processed, setProcessed] = useState(0);
@@ -580,6 +589,7 @@ export default function BatchTest() {
                     setNumDocuments={setNumDocuments}
                     numModels={numModels}
                     setNumModels={setNumModels}
+                    selectedModels={selectedModels}
                     maxDocuments={maxDocuments}
                     maxModels={maxModels}
                     isProcessing={isProcessing}

@@ -11,6 +11,7 @@ type Props = {
   setNumDocuments: (v: number[]) => void;
   numModels: number[];
   setNumModels: (v: number[]) => void;
+  selectedModels: string[];
   maxDocuments: number;
   maxModels: number;
   isProcessing: boolean;
@@ -26,6 +27,7 @@ export default function BatchConfigForm({
   setNumDocuments,
   numModels,
   setNumModels,
+  selectedModels,
   maxDocuments,
   maxModels,
   isProcessing,
@@ -118,6 +120,9 @@ export default function BatchConfigForm({
           1,
           maxModels,
         )}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Modelos utilizados: {selectedModels.join(", ")}
+        </p>
       </div>
 
       <div className="border-t pt-4">
