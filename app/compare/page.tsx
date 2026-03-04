@@ -465,8 +465,23 @@ export default function BatchComparisonPage() {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
+    const d = new Date();
+    const dateStr = [
+      String(d.getDate()).padStart(2, "0"),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      d.getFullYear(),
+    ].join("-");
+
+    const timeStr = [
+      String(d.getHours()).padStart(2, "0"),
+      String(d.getMinutes()).padStart(2, "0"),
+      String(d.getSeconds()).padStart(2, "0"),
+    ].join("-");
     link.setAttribute("href", url);
-    link.setAttribute("download", `batch_comparison_${Date.now()}.csv`);
+    link.setAttribute(
+      "download",
+      `batch_comparision_${dateStr}_${timeStr}.csv`,
+    );
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
