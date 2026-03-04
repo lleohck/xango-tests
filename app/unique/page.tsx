@@ -74,7 +74,8 @@ export default function UniqueTest() {
 
       setApiResult(json);
       setHistory((prev) => [json, ...prev].slice(0, 30));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao consultar API";
       const fallback = {
         meta: {
           ok: false,
@@ -82,7 +83,7 @@ export default function UniqueTest() {
           elapsedMs: 0,
           timestamp: new Date().toISOString(),
         },
-        error: { message: err?.message ?? "Erro ao consultar API" },
+        error: { message },
       };
 
       setApiResult(fallback);

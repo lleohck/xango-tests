@@ -29,8 +29,8 @@ type Props = {
   rows: BatchRow[];
 };
 
-function toCsvValue(v: any) {
-  const s = typeof v === "string" ? v : JSON.stringify(v);
+function toCsvValue(v: unknown) {
+  const s = typeof v === "string" ? v : (JSON.stringify(v) ?? "");
   const escaped = s.replaceAll(`"`, `""`);
   return `"${escaped}"`;
 }

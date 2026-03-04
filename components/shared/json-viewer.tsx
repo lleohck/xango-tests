@@ -11,10 +11,10 @@ type Json =
   | Json[]
   | { [key: string]: Json };
 
-function isObject(v: any): v is Record<string, Json> {
+function isObject(v: unknown): v is Record<string, Json> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
 }
-function isArray(v: any): v is Json[] {
+function isArray(v: unknown): v is Json[] {
   return Array.isArray(v);
 }
 
@@ -201,12 +201,20 @@ function normalizeToJson(value: unknown): Json {
     typeof value === "number" ||
     typeof value === "boolean"
   ) {
-    return value as Json;
+    return value;
   }
-  if (Array.isArray(value)) return value as any;
-  if (typeof value === "object") return value as any;
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeToJson(item));
+  }
+  if (typeof value === "object" && value !== null) {
+    const obj: Record<string, Json> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      obj[k] = normalizeToJson(v);
+    }
+    return obj;
+  }
 
-  return { value: String(value) } as any;
+  return { value: String(value) };
 }
 
 export default function JsonViewer({

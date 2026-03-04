@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronDown, LogOut, Moon, Sun, User as UserIcon } from "lucide-react";
+import { ChevronDown, LogOut, Moon, Sun } from "lucide-react";
 
 import { capitalizeWords, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ export default function AppHeader({
 
   const userName = session?.user?.name ?? "Usuário";
   const userEmail = session?.user?.email ?? "";
-  const avatarUrl = (session?.user as any)?.image as string | undefined;
+  const avatarUrl = session?.user?.image ?? undefined;
 
   const initials = useMemo(() => {
     const base = (userName || "U").trim().split(".");

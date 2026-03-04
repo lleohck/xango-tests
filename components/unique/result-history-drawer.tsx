@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Copy, FileJson, Terminal, X } from "lucide-react";
+import { Check, ChevronDown, Copy, FileJson, Terminal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
@@ -58,24 +57,35 @@ type Props = {
   onClearHistory?: () => void;
 };
 
-function getMeta(result: any) {
-  return result?.meta ?? null;
+type ApiMeta = {
+  ok?: boolean;
+  status?: number | null;
+  elapsedMs?: number;
+  method?: string;
+  url?: string;
+  timestamp?: string;
+  request?: unknown;
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
 }
 
-function getPrintablePayload(result: any) {
+function getMeta(result: unknown): ApiMeta | null {
+  if (!isRecord(result) || !isRecord(result.meta)) return null;
+  return result.meta as ApiMeta;
+}
+
+function getPrintablePayload(result: unknown) {
+  if (!isRecord(result)) return result;
   if (!result) return null;
-  if (result?.data !== undefined) return result.data;
-  if (result?.error !== undefined) return result.error;
+  if (result.data !== undefined) return result.data;
+  if (result.error !== undefined) return result.error;
   return result;
 }
 
-function isRequestDebug(v: any): v is RequestDebug {
-  return (
-    v &&
-    typeof v === "object" &&
-    typeof v.url === "string" &&
-    typeof v.method === "string"
-  );
+function isRequestDebug(v: unknown): v is RequestDebug {
+  return isRecord(v) && typeof v.url === "string" && typeof v.method === "string";
 }
 
 function shellQuote(value: string) {
@@ -118,7 +128,7 @@ function toCurl(req: RequestDebug) {
   return parts.join(" \\\n  ");
 }
 
-function StatusBadge({ meta }: { meta: any }) {
+function StatusBadge({ meta }: { meta: ApiMeta | null }) {
   const status = meta?.status;
   const ok = meta?.ok;
 
@@ -175,9 +185,7 @@ export default function ResultHistoryDrawer({
 
   const filteredHistory = useMemo(() => {
     if (!currentTimestamp) return history;
-    return history.filter(
-      (h: any) => getMeta(h)?.timestamp !== currentTimestamp,
-    );
+    return history.filter((h) => getMeta(h)?.timestamp !== currentTimestamp);
   }, [history, currentTimestamp]);
 
   const buttonLabel =
@@ -235,11 +243,11 @@ export default function ResultHistoryDrawer({
             </div>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              {filteredHistory.map((h: any, idx: number) => {
+              {filteredHistory.map((h, idx: number) => {
                 const hm = getMeta(h);
                 const hp = getPrintablePayload(h);
                 const req = isRequestDebug(hm?.request)
-                  ? (hm!.request as RequestDebug)
+                  ? hm.request
                   : null;
 
                 return (

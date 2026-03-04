@@ -41,18 +41,20 @@ import BatchResultsTable, {
   BatchRow,
 } from "@/components/batch/batch-results-table";
 
-type ApiFormDataMap = {
-  "bi-data"?: BiDataParamsFormData;
-  "ci-data"?: CiDataParamsFormData;
-  "bi-orchestrator"?: BiOrchestratorParamsFormData;
-  "ci-orchestrator"?: CiOrchestratorParamsFormData;
+type ApiParamsByType = {
+  "bi-data": BiDataParamsFormData;
+  "ci-data": CiDataParamsFormData;
+  "bi-orchestrator": BiOrchestratorParamsFormData;
+  "ci-orchestrator": CiOrchestratorParamsFormData;
 };
+
+type ApiFormDataMap = Partial<ApiParamsByType>;
 
 type BatchTestFormData = {
   forms: ApiFormDataMap;
 };
 
-const defaultParams = {
+const defaultParams: ApiParamsByType = {
   "bi-data": {
     version: "v2",
     explainer: false,
@@ -72,7 +74,7 @@ const defaultParams = {
     transaction: "transaction",
     is_canary: false,
   } satisfies CiOrchestratorParamsFormData,
-} as const;
+};
 
 type ApiPrefix = "CI" | "BI";
 
@@ -145,21 +147,35 @@ function parseList(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function getMeta(result: any) {
-  return result?.meta ?? null;
+type ResponseMeta = {
+  ok?: boolean;
+  status?: number | null;
+  elapsedMs?: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
-function getPrintablePayload(result: any) {
+function getMeta(result: unknown): ResponseMeta | null {
+  if (!isRecord(result)) return null;
+  const meta = result.meta;
+  if (!isRecord(meta)) return null;
+  return meta as ResponseMeta;
+}
+
+function getPrintablePayload(result: unknown) {
+  if (!isRecord(result)) return result;
   if (!result) return null;
-  if (result?.data !== undefined) return result.data;
-  if (result?.error !== undefined) return result.error;
+  if (result.data !== undefined) return result.data;
+  if (result.error !== undefined) return result.error;
   return result;
 }
 
-function diffPaths(a: any, b: any, base = ""): string[] {
+function diffPaths(a: unknown, b: unknown, base = ""): string[] {
   if (a === b) return [];
-  const aIsObj = a !== null && typeof a === "object";
-  const bIsObj = b !== null && typeof b === "object";
+  const aIsObj = isRecord(a);
+  const bIsObj = isRecord(b);
   if (!aIsObj || !bIsObj) return [base || "$"];
 
   const aIsArr = Array.isArray(a);
@@ -188,7 +204,7 @@ function diffPaths(a: any, b: any, base = ""): string[] {
 async function callUnique(
   environment: Environment,
   apiType: ApiType,
-  payload: any,
+  payload: Record<string, unknown>,
   signal?: AbortSignal,
 ) {
   const res = await fetch("/api/unique", {
@@ -258,10 +274,8 @@ export default function BatchTest() {
 
   const apiPrefix = useMemo(() => getApiPrefix(apiType), [apiType]);
 
-  const rawDocs =
-    (BATCH_ENV as any)[apiPrefix]?.[environment]?.documents ?? undefined;
-  const rawModels =
-    (BATCH_ENV as any)[apiPrefix]?.[environment]?.models ?? undefined;
+  const rawDocs = BATCH_ENV[apiPrefix][environment].documents;
+  const rawModels = BATCH_ENV[apiPrefix][environment].models;
 
   const documentsList = useMemo(() => parseList(rawDocs), [rawDocs]);
   const modelsList = useMemo(() => parseList(rawModels), [rawModels]);
@@ -290,14 +304,14 @@ export default function BatchTest() {
   const [rows, setRows] = useState<BatchRow[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
-  const updateApiParams = <T extends object, K extends keyof T>(
-    api: ApiType,
-    field: K,
-    value: T[K],
+  const updateApiParams = <K extends ApiType, F extends keyof ApiParamsByType[K]>(
+    api: K,
+    field: F,
+    value: ApiParamsByType[K][F],
   ) => {
     setFormData((prev) => {
-      const fallback = (defaultParams as any)[api] as T;
-      const current = ((prev.forms as any)[api] ?? fallback) as T;
+      const fallback = defaultParams[api];
+      const current = (prev.forms[api] ?? fallback) as ApiParamsByType[K];
 
       return {
         ...prev,
@@ -312,8 +326,10 @@ export default function BatchTest() {
     });
   };
 
-  const currentParams =
-    (formData.forms as any)[apiType] ?? (defaultParams as any)[apiType];
+  const getCurrentParams = <K extends ApiType>(api: K): ApiParamsByType[K] =>
+    (formData.forms[api] ?? defaultParams[api]) as ApiParamsByType[K];
+
+  const currentParams = getCurrentParams(apiType);
 
   const startBatch = async () => {
     if (isProcessing) return;
@@ -350,7 +366,7 @@ export default function BatchTest() {
     abortRef.current = controller;
 
     const acc: BatchRow[] = [];
-    let flushTimer: any = null;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleFlush = () => {
       if (flushTimer) return;
@@ -491,11 +507,7 @@ export default function BatchTest() {
                       version="batch"
                       formData={currentParams as BiDataParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<BiDataParamsFormData, any>(
-                          "bi-data",
-                          field,
-                          value,
-                        )
+                        updateApiParams("bi-data", field, value)
                       }
                     />
                   )}
@@ -505,11 +517,7 @@ export default function BatchTest() {
                       version="batch"
                       formData={currentParams as CiDataParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<CiDataParamsFormData, any>(
-                          "ci-data",
-                          field,
-                          value,
-                        )
+                        updateApiParams("ci-data", field, value)
                       }
                     />
                   )}
@@ -519,11 +527,7 @@ export default function BatchTest() {
                       version="batch"
                       formData={currentParams as BiOrchestratorParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<BiOrchestratorParamsFormData, any>(
-                          "bi-orchestrator",
-                          field,
-                          value,
-                        )
+                        updateApiParams("bi-orchestrator", field, value)
                       }
                     />
                   )}
@@ -533,11 +537,7 @@ export default function BatchTest() {
                       version="batch"
                       formData={currentParams as CiOrchestratorParamsFormData}
                       setFormData={(field, value) =>
-                        updateApiParams<CiOrchestratorParamsFormData, any>(
-                          "ci-orchestrator",
-                          field,
-                          value,
-                        )
+                        updateApiParams("ci-orchestrator", field, value)
                       }
                     />
                   )}
