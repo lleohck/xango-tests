@@ -458,13 +458,16 @@ export async function generateComparisonReportPdf(
 
     summaryBadges.forEach((badge) => {
       const colors = toneColors(badge.tone);
+      const [fillR, fillG, fillB] = colors.fill;
+      const [borderR, borderG, borderB] = colors.border;
+      const [textR, textG, textB] = colors.text;
       if (badgesWithBackground) {
-        doc.setFillColor(...colors.fill);
-        doc.setDrawColor(...colors.border);
+        doc.setFillColor(fillR, fillG, fillB);
+        doc.setDrawColor(borderR, borderG, borderB);
         doc.roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 1, 1, "FD");
       }
 
-      doc.setTextColor(...colors.text);
+      doc.setTextColor(textR, textG, textB);
       const textWidth = doc.getTextWidth(badge.label);
       doc.text(badge.label, badgeX + (badgeWidth - textWidth) / 2, badgeY + 3.4);
       doc.setTextColor(0, 0, 0);
