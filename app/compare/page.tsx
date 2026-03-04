@@ -20,6 +20,13 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import {
+  generateComparisonReportPdf,
+  type ComparisonReportRow,
+} from "@/lib/pdf-utils";
+import { mergeBatchFileMetadata } from "@/lib/xango-mappers";
 
 type BatchCsvRow = {
   model: string;
@@ -254,6 +261,13 @@ function formatDelta(value: number | null, digits = 0) {
   return value > 0 ? `+${fixed}` : fixed;
 }
 
+function getDeltaBadgeStyle(value: number | null, digits = 0) {
+  const formatted = formatDelta(value, digits);
+  if (formatted.startsWith("-")) return STATUS_STYLES.improved;
+  if (formatted.startsWith("+")) return STATUS_STYLES.regressed;
+  return STATUS_STYLES.same;
+}
+
 function getDeltaStatus(delta: number | null) {
   if (delta === null) return "na" as const;
   if (delta < 0) return "improved" as const;
@@ -309,6 +323,7 @@ const STATUS_STYLES = {
 } as const;
 
 export default function BatchComparisonPage() {
+  const { data: session } = useSession();
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [beforeRows, setBeforeRows] = useState<BatchCsvRow[]>([]);
@@ -320,6 +335,8 @@ export default function BatchComparisonPage() {
   const [comparisonResults, setComparisonResults] = useState<ComparisonRow[]>(
     [],
   );
+  const [lastComparisonAt, setLastComparisonAt] = useState<Date | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [error, setError] = useState<string>("");
 
   const handleFileUpload = async (file: File, type: "before" | "after") => {
@@ -422,6 +439,7 @@ export default function BatchComparisonPage() {
     });
 
     setComparisonResults(results);
+    setLastComparisonAt(new Date());
     setError("");
   };
 
@@ -488,6 +506,54 @@ export default function BatchComparisonPage() {
     document.body.removeChild(link);
   };
 
+  const downloadOfficialReport = async () => {
+    if (comparisonResults.length === 0) return;
+
+    setIsGeneratingReport(true);
+
+    try {
+      const reportDate = new Date();
+      const comparedAt = lastComparisonAt ?? reportDate;
+      const metadata = mergeBatchFileMetadata(beforeFile, afterFile);
+      const userName = session?.user?.name?.trim() || "Usuário autenticado";
+      const userEmail = session?.user?.email?.trim() || "email não informado";
+      const reportRows: ComparisonReportRow[] = comparisonResults.map(
+        (row) => ({
+          model: row.model,
+          ndoc: row.ndoc,
+          result1Equal: row.result1Equal,
+          result2Equal: row.result2Equal,
+          beforeElapsed1: row.beforeElapsed1,
+          beforeElapsed2: row.beforeElapsed2,
+          afterElapsed1: row.afterElapsed1,
+          afterElapsed2: row.afterElapsed2,
+          elapsed1Delta: row.elapsed1Delta,
+          elapsed2Delta: row.elapsed2Delta,
+        }),
+      );
+
+      await generateComparisonReportPdf({
+        rows: reportRows,
+        applicationName: metadata.applicationName,
+        environmentName: metadata.environmentName,
+        applicationCode: metadata.apiCode,
+        environmentCode: metadata.environmentCode,
+        beforeFileName: beforeFile?.name ?? null,
+        afterFileName: afterFile?.name ?? null,
+        userName,
+        userEmail,
+        comparedAt,
+        generatedAt: reportDate,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "erro desconhecido ao gerar PDF";
+      toast.error(`Falha ao gerar report oficial: ${message}`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   const stats = useMemo(() => {
     if (comparisonResults.length === 0) return null;
 
@@ -505,12 +571,32 @@ export default function BatchComparisonPage() {
       (r) => r.elapsed2Status === "regressed",
     ).length;
 
+    const elapsed1Deltas = comparisonResults
+      .map((r) => r.elapsed1Delta)
+      .filter((value): value is number => value !== null);
+    const elapsed2Deltas = comparisonResults
+      .map((r) => r.elapsed2Delta)
+      .filter((value): value is number => value !== null);
+
+    const elapsed1AvgDelta =
+      elapsed1Deltas.length > 0
+        ? elapsed1Deltas.reduce((sum, value) => sum + value, 0) /
+          elapsed1Deltas.length
+        : null;
+    const elapsed2AvgDelta =
+      elapsed2Deltas.length > 0
+        ? elapsed2Deltas.reduce((sum, value) => sum + value, 0) /
+          elapsed2Deltas.length
+        : null;
+
     return {
       matched,
       elapsed1Improved,
       elapsed1Regressed,
       elapsed2Improved,
       elapsed2Regressed,
+      elapsed1AvgDelta,
+      elapsed2AvgDelta,
       total: comparisonResults.length,
     };
   }, [comparisonResults]);
@@ -675,6 +761,18 @@ export default function BatchComparisonPage() {
                   <Badge variant="outline" className={STATUS_STYLES.regressed}>
                     T2 piorou: {stats.elapsed2Regressed}
                   </Badge>
+                  <Badge
+                    variant="outline"
+                    className={getDeltaBadgeStyle(stats.elapsed1AvgDelta, 2)}
+                  >
+                    Média ΔT1: {formatDelta(stats.elapsed1AvgDelta, 2)} ms
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={getDeltaBadgeStyle(stats.elapsed2AvgDelta, 2)}
+                  >
+                    Média ΔT2: {formatDelta(stats.elapsed2AvgDelta, 2)} ms
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
@@ -683,17 +781,29 @@ export default function BatchComparisonPage() {
           {comparisonResults.length > 0 && (
             <Card>
               <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                  <div className="min-w-0">
                     <CardTitle>Resultados da Comparação</CardTitle>
                     <CardDescription>
                       Comparação detalhada por modelo e documento.
                     </CardDescription>
                   </div>
                   <Button
+                    onClick={downloadOfficialReport}
+                    size="sm"
+                    disabled={isGeneratingReport}
+                    className="justify-self-center"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {isGeneratingReport
+                      ? "Gerando Report..."
+                      : "Baixar Report Oficial (PDF)"}
+                  </Button>
+                  <Button
                     onClick={downloadComparison}
                     variant="outline"
                     size="sm"
+                    className="justify-self-end"
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Baixar CSV

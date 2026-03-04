@@ -8,6 +8,18 @@ export type BuiltRequest = {
   body?: unknown;
 };
 
+type RequestPayload = {
+  modelo?: unknown;
+  ndoc?: unknown;
+  is_canary?: unknown;
+  version?: unknown;
+  explainer?: unknown;
+  bifrost?: unknown;
+  user?: unknown;
+  cgc?: unknown;
+  transaction?: unknown;
+};
+
 const withNoTrailingSlash = (s: string) => s.replace(/\/+$/, "");
 
 /**
@@ -37,7 +49,7 @@ export function getBaseUrl(apiType: ApiType, env: Environment) {
   return withNoTrailingSlash(value);
 }
 
-function canaryHeader(is_canary?: boolean) {
+function canaryHeader(is_canary?: boolean): Record<string, string> {
   return is_canary ? { "X-Canary": "true" } : {};
 }
 
@@ -65,7 +77,11 @@ function canaryHeader(is_canary?: boolean) {
  *         source="batch" somente se NÃO canary
  *   Headers: X-Canary (se true)
  */
-export function buildRequest(apiType: ApiType, baseUrl: string, payload: any): BuiltRequest {
+export function buildRequest(
+  apiType: ApiType,
+  baseUrl: string,
+  payload: RequestPayload,
+): BuiltRequest {
   const modelo = String(payload.modelo ?? "").trim();
   const ndoc = String(payload.ndoc ?? "").trim();
   const is_canary = Boolean(payload.is_canary);
@@ -154,7 +170,15 @@ export function buildRequest(apiType: ApiType, baseUrl: string, payload: any): B
 
     const document = ndoc.padStart(11, "0");
 
-    const body: any = {
+    const body: {
+      document: string;
+      documentType: string;
+      user: string;
+      cgc: string;
+      model: string;
+      transaction: string;
+      source?: string;
+    } = {
       document,
       documentType: "2",
       user,

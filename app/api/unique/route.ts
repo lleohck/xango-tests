@@ -8,39 +8,6 @@ import { buildRequest, getBaseUrl } from "@/server/api/registry";
 
 export const runtime = "nodejs";
 
-function base64UrlDecode(input: string) {
-  // base64url -> base64
-  input = input.replace(/-/g, "+").replace(/_/g, "/");
-  // padding
-  const pad = input.length % 4;
-  if (pad) input += "=".repeat(4 - pad);
-  return Buffer.from(input, "base64").toString("utf8");
-}
-
-function decodeJwtClaims(token: string) {
-  const parts = token.split(".");
-  if (parts.length !== 3) return { isJwt: false as const };
-
-  try {
-    const header = JSON.parse(base64UrlDecode(parts[0]));
-    const payload = JSON.parse(base64UrlDecode(parts[1]));
-    return { isJwt: true as const, header, payload };
-  } catch {
-    return { isJwt: false as const };
-  }
-}
-
-function tokenFingerprint(token: string) {
-  // fingerprint simples: tamanho + primeiros/últimos chars (não revela o token)
-  const t = token || "";
-  return {
-    len: t.length,
-    head: t.slice(0, 12),
-    tail: t.slice(-12),
-    parts: t.split(".").length,
-  };
-}
-
 const insecureDispatcher = new Agent({
   connect: {
     rejectUnauthorized: false,
@@ -55,32 +22,54 @@ function safeJson(text: string) {
   }
 }
 
-function serializeError(e: any) {
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+function serializeError(e: unknown) {
+  if (!isRecord(e)) {
+    return {
+      name: undefined,
+      message: String(e ?? "Unknown error"),
+      code: undefined,
+      cause: undefined,
+    };
+  }
+
+  const cause = isRecord(e.cause)
+    ? {
+        name:
+          typeof e.cause.name === "string" ? e.cause.name : undefined,
+        message:
+          typeof e.cause.message === "string" ? e.cause.message : undefined,
+        code: typeof e.cause.code === "string" ? e.cause.code : undefined,
+        hostname:
+          typeof e.cause.hostname === "string" ? e.cause.hostname : undefined,
+        port:
+          typeof e.cause.port === "number" ? e.cause.port : undefined,
+      }
+    : undefined;
+
   return {
-    name: e?.name,
-    message: e?.message,
-    code: e?.code,
-    cause: e?.cause
-      ? {
-          name: e.cause?.name,
-          message: e.cause?.message,
-          code: e.cause?.code,
-          hostname: e.cause?.hostname,
-          port: e.cause?.port,
-        }
-      : undefined,
+    name: typeof e.name === "string" ? e.name : undefined,
+    message: typeof e.message === "string" ? e.message : "fetch failed",
+    code: typeof e.code === "string" ? e.code : undefined,
+    cause,
   };
 }
+
+type UniqueRouteInput = {
+  environment: Environment;
+  apiType: ApiType;
+  payload: Record<string, unknown>;
+};
 
 export async function POST(req: Request) {
   const start = Date.now();
 
   try {
-    const { environment, apiType, payload } = (await req.json()) as {
-      environment: Environment;
-      apiType: ApiType;
-      payload: any;
-    };
+    const { environment, apiType, payload } =
+      (await req.json()) as UniqueRouteInput;
 
     const baseUrl = getBaseUrl(apiType, environment);
     const built = buildRequest(apiType, baseUrl, payload);
@@ -99,13 +88,15 @@ export async function POST(req: Request) {
       body: built.body ?? null,
     };
 
-    const res = await fetch(built.url, {
+    const fetchOptions: RequestInit & { dispatcher?: Agent } = {
       method: built.method,
       headers,
       body: built.body ? JSON.stringify(built.body) : undefined,
       cache: "no-store",
       dispatcher: insecureDispatcher,
-    } as any);
+    };
+
+    const res = await fetch(built.url, fetchOptions);
 
     const elapsedMs = Date.now() - start;
 
@@ -127,8 +118,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ meta, data: parsed }, { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     const elapsedMs = Date.now() - start;
+    const message = err instanceof Error ? err.message : "fetch failed";
 
     return NextResponse.json(
       {
@@ -139,7 +131,7 @@ export async function POST(req: Request) {
           timestamp: new Date().toISOString(),
         },
         error: {
-          message: err?.message ?? "fetch failed",
+          message,
           details: serializeError(err),
         },
       },

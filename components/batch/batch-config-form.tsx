@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Ban, PlayCircle, Square } from "lucide-react";
+import { Ban, PlayCircle } from "lucide-react";
 
 type Props = {
   numDocuments: number[];

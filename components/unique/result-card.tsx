@@ -66,18 +66,34 @@ type UniqueResultCardProps = {
   onClearHistory?: () => void;
 };
 
-function getMeta(result: any) {
-  return result?.meta ?? null;
+type ApiMeta = {
+  ok?: boolean;
+  status?: number | null;
+  elapsedMs?: number;
+  method?: string;
+  url?: string;
+  timestamp?: string;
+  request?: unknown;
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
 }
 
-function getPrintablePayload(result: any) {
+function getMeta(result: unknown): ApiMeta | null {
+  if (!isRecord(result) || !isRecord(result.meta)) return null;
+  return result.meta as ApiMeta;
+}
+
+function getPrintablePayload(result: unknown) {
+  if (!isRecord(result)) return result;
   if (!result) return null;
-  if (result?.data !== undefined) return result.data;
-  if (result?.error !== undefined) return result.error;
+  if (result.data !== undefined) return result.data;
+  if (result.error !== undefined) return result.error;
   return result;
 }
 
-function StatusBadge({ meta }: { meta: any }) {
+function StatusBadge({ meta }: { meta: ApiMeta | null }) {
   const status = meta?.status;
   const ok = meta?.ok;
 
@@ -102,13 +118,8 @@ type RequestDebug = {
   body?: unknown | null;
 };
 
-function isRequestDebug(v: any): v is RequestDebug {
-  return (
-    v &&
-    typeof v === "object" &&
-    typeof v.url === "string" &&
-    typeof v.method === "string"
-  );
+function isRequestDebug(v: unknown): v is RequestDebug {
+  return isRecord(v) && typeof v.url === "string" && typeof v.method === "string";
 }
 
 function shellQuote(value: string) {
@@ -161,7 +172,7 @@ export default function UniqueResultCard({
   const meta = getMeta(apiResult);
   const printable = getPrintablePayload(apiResult);
   const request = isRequestDebug(meta?.request)
-    ? (meta!.request as RequestDebug)
+    ? meta.request
     : null;
 
   const [copied, setCopied] = useState<

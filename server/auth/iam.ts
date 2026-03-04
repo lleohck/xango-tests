@@ -15,6 +15,15 @@ export type IamTokenResponse = {
   raw?: unknown; // útil para debug em logs do servidor
 };
 
+type IamRawResponse = {
+  access_token?: string;
+  accessToken?: string;
+  token_type?: string;
+  tokenType?: string;
+  expires_in?: number | string;
+  expiresIn?: number | string;
+} & Record<string, unknown>;
+
 const REQUIRED = (name: string) => {
   const v = process.env[name];
   if (!v) throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
@@ -64,7 +73,7 @@ export async function fetchIamToken(
     throw new Error(`Falha na autenticação IAM (${res.status}): ${text}`);
   }
 
-  const data = (await res.json()) as any;
+  const data = (await res.json()) as IamRawResponse;
   const accessToken = data?.access_token ?? data?.accessToken;
   if (!accessToken) {
     throw new Error('Resposta da IAM sem access_token');

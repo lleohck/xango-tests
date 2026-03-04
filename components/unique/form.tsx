@@ -33,12 +33,14 @@ import CiOrchestratorParamsForm, {
 } from "@/components/shared/apis/ci-orchestrator-params-form";
 
 /** Map de dados por API */
-type ApiFormDataMap = {
-  "bi-data"?: BiDataParamsFormData;
-  "ci-data"?: CiDataParamsFormData;
-  "bi-orchestrator"?: BiOrchestratorParamsFormData;
-  "ci-orchestrator"?: CiOrchestratorParamsFormData;
+type ApiParamsByType = {
+  "bi-data": BiDataParamsFormData;
+  "ci-data": CiDataParamsFormData;
+  "bi-orchestrator": BiOrchestratorParamsFormData;
+  "ci-orchestrator": CiOrchestratorParamsFormData;
 };
+
+type ApiFormDataMap = Partial<ApiParamsByType>;
 
 export type UniqueTestFormData = {
   modelo: string;
@@ -52,7 +54,7 @@ interface UniqueTestFormProps {
 }
 
 /** Defaults por API */
-const defaultParams = {
+const defaultParams: ApiParamsByType = {
   "bi-data": {
     version: "v3",
     explainer: false,
@@ -75,7 +77,22 @@ const defaultParams = {
     transaction: "transaction",
     is_canary: false,
   } satisfies CiOrchestratorParamsFormData,
-} as const;
+};
+
+type ApiRegistryEntry<K extends ApiType> = {
+  defaultParams: ApiParamsByType[K];
+  render: (props: {
+    data: ApiParamsByType[K];
+    onChange: <F extends keyof ApiParamsByType[K]>(
+      field: F,
+      value: ApiParamsByType[K][F],
+    ) => void;
+  }) => React.JSX.Element;
+};
+
+type ApiRegistry = {
+  [K in ApiType]: ApiRegistryEntry<K>;
+};
 
 /** Registry: API -> { defaultParams, renderer do form } */
 const apiRegistry = {
@@ -142,10 +159,7 @@ const apiRegistry = {
       />
     ),
   },
-} satisfies Record<
-  ApiType,
-  { defaultParams: any; render: (props: any) => JSX.Element }
->;
+} satisfies ApiRegistry;
 
 export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
   const [formData, setFormData] = useState<UniqueTestFormData>({
@@ -158,7 +172,8 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
 
   const currentApiParams = useMemo(() => {
     const existing = formData.forms[apiName];
-    return (existing ?? apiRegistry[apiName].defaultParams) as any;
+    return (existing ??
+      apiRegistry[apiName].defaultParams) as ApiParamsByType[typeof apiName];
   }, [apiName, formData.forms]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,14 +194,18 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateApiParams = <T extends object, K extends keyof T>(
-    api: ApiType,
-    field: K,
-    value: T[K],
+  const updateApiParams = <
+    K extends ApiType,
+    F extends keyof ApiParamsByType[K],
+  >(
+    api: K,
+    field: F,
+    value: ApiParamsByType[K][F],
   ) => {
     setFormData((prev) => {
-      const fallback = apiRegistry[api].defaultParams as T;
-      const current = ((prev.forms[api] ?? fallback) as T) ?? fallback;
+      const fallback = apiRegistry[api].defaultParams;
+      const current =
+        ((prev.forms[api] ?? fallback) as ApiParamsByType[K]) ?? fallback;
 
       return {
         ...prev,
@@ -198,6 +217,36 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
           },
         },
       };
+    });
+  };
+
+  const renderApiParams = () => {
+    if (apiName === "bi-data") {
+      return apiRegistry["bi-data"].render({
+        data: currentApiParams as BiDataParamsFormData,
+        onChange: (field, value) => updateApiParams("bi-data", field, value),
+      });
+    }
+
+    if (apiName === "ci-data") {
+      return apiRegistry["ci-data"].render({
+        data: currentApiParams as CiDataParamsFormData,
+        onChange: (field, value) => updateApiParams("ci-data", field, value),
+      });
+    }
+
+    if (apiName === "bi-orchestrator") {
+      return apiRegistry["bi-orchestrator"].render({
+        data: currentApiParams as BiOrchestratorParamsFormData,
+        onChange: (field, value) =>
+          updateApiParams("bi-orchestrator", field, value),
+      });
+    }
+
+    return apiRegistry["ci-orchestrator"].render({
+      data: currentApiParams as CiOrchestratorParamsFormData,
+      onChange: (field, value) =>
+        updateApiParams("ci-orchestrator", field, value),
     });
   };
 
@@ -241,11 +290,7 @@ export function UniqueTestForm({ apiName, onSubmit }: UniqueTestFormProps) {
           </div>
 
           <div className="space-y-3">
-            {apiRegistry[apiName].render({
-              data: currentApiParams,
-              onChange: (field: any, value: any) =>
-                updateApiParams<any, any>(apiName, field, value),
-            })}
+            {renderApiParams()}
           </div>
 
           <Button type="submit" className="w-full" disabled={!isFormValid}>
