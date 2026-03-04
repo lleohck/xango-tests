@@ -49,7 +49,7 @@ export function getBaseUrl(apiType: ApiType, env: Environment) {
   return withNoTrailingSlash(value);
 }
 
-function canaryHeader(is_canary?: boolean) {
+function canaryHeader(is_canary?: boolean): Record<string, string> {
   return is_canary ? { "X-Canary": "true" } : {};
 }
 
