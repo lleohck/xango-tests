@@ -11,13 +11,15 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export function ModeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const currentTheme = theme === "serasa-dark" || theme === "dark"
+    ? "serasa-dark"
+    : "serasa-light";
 
   React.useEffect(() => setMounted(true), []);
 
@@ -36,30 +38,15 @@ export function ModeToggle() {
 
       <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuRadioGroup
-          value={theme ?? "system"}
-          onValueChange={setTheme}
+          value={currentTheme}
+          onValueChange={(value) => setTheme(value)}
         >
-          {/* Fallback padrão */}
-          <DropdownMenuRadioItem value="light">
-            Claro (padrão)
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            Escuro (padrão)
-          </DropdownMenuRadioItem>
-
-          <DropdownMenuSeparator />
-
-          {/* Temas da marca */}
           <DropdownMenuRadioItem value="serasa-light">
-            Serasa Light
+            Modo Claro
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="serasa-dark">
-            Serasa Dark
+            Modo Escuro
           </DropdownMenuRadioItem>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuRadioItem value="system">Sistema</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

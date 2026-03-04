@@ -15,8 +15,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -43,6 +41,7 @@ export default function AppHeader({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
+  const isDarkTheme = theme === "serasa-dark" || theme === "dark";
 
   const userName = session?.user?.name ?? "Usuário";
   const userEmail = session?.user?.email ?? "";
@@ -141,31 +140,13 @@ export default function AppHeader({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                onClick={() =>
+                  setTheme(isDarkTheme ? "serasa-light" : "serasa-dark")
+                }
               >
-                {theme === "dark" ? <Sun /> : <Moon />}
-                {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
+                {isDarkTheme ? <Sun /> : <Moon />}
+                {isDarkTheme ? "Modo Claro" : "Modo Escuro"}
               </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuRadioGroup
-                value={theme ?? "system"}
-                onValueChange={setTheme}
-              >
-                <DropdownMenuRadioItem value="serasa-light">
-                  Serasa Light
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="serasa-dark">
-                  Serasa Dark
-                </DropdownMenuRadioItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuRadioItem value="system">
-                  Sistema
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
 
               <DropdownMenuSeparator />
 

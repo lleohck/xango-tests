@@ -2,7 +2,32 @@
 "use client";
 
 import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import {
+  ThemeProvider as NextThemesProvider,
+  useTheme,
+} from "next-themes";
+
+type SerasaTheme = "serasa-light" | "serasa-dark";
+
+function normalizeTheme(theme?: string): SerasaTheme {
+  return theme === "serasa-dark" || theme === "dark"
+    ? "serasa-dark"
+    : "serasa-light";
+}
+
+function ThemeNormalizer() {
+  const { theme, setTheme } = useTheme();
+
+  React.useEffect(() => {
+    if (!theme) return;
+    const normalizedTheme = normalizeTheme(theme);
+    if (theme !== normalizedTheme) {
+      setTheme(normalizedTheme);
+    }
+  }, [theme, setTheme]);
+
+  return null;
+}
 
 export function ThemeProvider({
   children,
@@ -10,12 +35,13 @@ export function ThemeProvider({
 }: React.ComponentProps<typeof NextThemesProvider>) {
   return (
     <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      themes={["light", "dark", "serasa-light", "serasa-dark"]}
       {...props}
+      attribute="class"
+      defaultTheme="serasa-light"
+      enableSystem={false}
+      themes={["serasa-light", "serasa-dark"]}
     >
+      <ThemeNormalizer />
       {children}
     </NextThemesProvider>
   );
