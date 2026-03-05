@@ -25,7 +25,7 @@ export default function CiDataParamsForm({
     <div className="grid gap-3">
       <SwitchChoiceCard
         title="Bifrost"
-        description={version == "unique" ? "Habilita appCal=bifrost" : null}
+        description={version == "unique" ? "Habilita appCall=bifrost" : null}
         id="bifrost"
         checked={formData.bifrost}
         onCheckedChange={(checked) => setFormData("bifrost", checked)}

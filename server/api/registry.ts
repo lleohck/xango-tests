@@ -63,7 +63,7 @@ function canaryHeader(is_canary?: boolean): Record<string, string> {
  *
  * - CI-DATA = POST 
  *   URL:  {baseUrl}/{model}    (baseUrl termina em /api/score/v1)
- *   Body: { ndoc, appCal: "bifrost"(se bifrost true) }
+ *   Body: { ndoc, appCall: "bifrost"(se bifrost true) }
  *   Headers: X-Canary (se true)
  *
  * - BI-ORCHESTRATOR = POST
@@ -128,7 +128,7 @@ export function buildRequest(
       },
       body: {
         ndoc,
-        ...(bifrost ? { appCal: "bifrost" } : {}),
+        ...(bifrost ? { appCall: "bifrost" } : {}),
       },
     };
   }
