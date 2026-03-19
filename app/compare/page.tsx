@@ -18,6 +18,7 @@ import {
   FileText,
   AlertCircle,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -323,6 +324,8 @@ const STATUS_STYLES = {
 export default function BatchComparisonPage() {
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
+  const [isBeforeUploading, setIsBeforeUploading] = useState(false);
+  const [isAfterUploading, setIsAfterUploading] = useState(false);
   const [beforeRows, setBeforeRows] = useState<BatchCsvRow[]>([]);
   const [afterRows, setAfterRows] = useState<BatchCsvRow[]>([]);
   const [beforeInvalid, setBeforeInvalid] = useState(0);
@@ -335,10 +338,16 @@ export default function BatchComparisonPage() {
   const [lastComparisonAt, setLastComparisonAt] = useState<Date | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [error, setError] = useState<string>("");
+  const isUploading = isBeforeUploading || isAfterUploading;
 
   const handleFileUpload = async (file: File, type: "before" | "after") => {
     setError("");
     setComparisonResults([]);
+    if (type === "before") {
+      setIsBeforeUploading(true);
+    } else {
+      setIsAfterUploading(true);
+    }
 
     try {
       const text = await file.text();
@@ -369,6 +378,12 @@ export default function BatchComparisonPage() {
       setError(
         `Erro ao processar arquivo ${type === "before" ? "ANTES" : "DEPOIS"}: ${err}`,
       );
+    } finally {
+      if (type === "before") {
+        setIsBeforeUploading(false);
+      } else {
+        setIsAfterUploading(false);
+      }
     }
   };
 
@@ -619,6 +634,7 @@ export default function BatchComparisonPage() {
                     <input
                       type="file"
                       accept=".csv"
+                      disabled={isBeforeUploading}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleFileUpload(file, "before");
@@ -628,20 +644,28 @@ export default function BatchComparisonPage() {
                     />
                     <label
                       htmlFor="before-file"
-                      className="flex cursor-pointer flex-col items-center justify-center"
+                      className={`flex flex-col items-center justify-center ${isBeforeUploading ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
                     >
-                      <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      {isBeforeUploading ? (
+                        <Loader2 className="mb-2 h-8 w-8 animate-spin text-slate-400" />
+                      ) : (
+                        <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      )}
                       <p className="text-sm font-medium text-slate-700">
-                        {beforeFile
+                        {isBeforeUploading
+                          ? "Enviando arquivo..."
+                          : beforeFile
                           ? beforeFile.name
                           : "Clique para selecionar"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        CSV (máx. 10 MB)
+                        {isBeforeUploading
+                          ? "Aguarde o processamento"
+                          : "CSV (máx. 10 MB)"}
                       </p>
                     </label>
                   </div>
-                  {beforeFile && (
+                  {beforeFile && !isBeforeUploading && (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
                       <span>{beforeRows.length} registros válidos</span>
@@ -665,6 +689,7 @@ export default function BatchComparisonPage() {
                     <input
                       type="file"
                       accept=".csv"
+                      disabled={isAfterUploading}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) handleFileUpload(file, "after");
@@ -674,18 +699,28 @@ export default function BatchComparisonPage() {
                     />
                     <label
                       htmlFor="after-file"
-                      className="flex cursor-pointer flex-col items-center justify-center"
+                      className={`flex flex-col items-center justify-center ${isAfterUploading ? "cursor-not-allowed opacity-80" : "cursor-pointer"}`}
                     >
-                      <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      {isAfterUploading ? (
+                        <Loader2 className="mb-2 h-8 w-8 animate-spin text-slate-400" />
+                      ) : (
+                        <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                      )}
                       <p className="text-sm font-medium text-slate-700">
-                        {afterFile ? afterFile.name : "Clique para selecionar"}
+                        {isAfterUploading
+                          ? "Enviando arquivo..."
+                          : afterFile
+                            ? afterFile.name
+                            : "Clique para selecionar"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        CSV (máx. 10 MB)
+                        {isAfterUploading
+                          ? "Aguarde o processamento"
+                          : "CSV (máx. 10 MB)"}
                       </p>
                     </label>
                   </div>
-                  {afterFile && (
+                  {afterFile && !isAfterUploading && (
                     <div className="flex flex-wrap items-center gap-2 text-sm text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
                       <span>{afterRows.length} registros válidos</span>
@@ -716,10 +751,19 @@ export default function BatchComparisonPage() {
                   onClick={compareData}
                   className="w-full"
                   size="lg"
-                  disabled={!beforeFile || !afterFile}
+                  disabled={!beforeFile || !afterFile || isUploading}
                 >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Comparar Lotes
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Enviando arquivos...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="mr-2 h-5 w-5" />
+                      Comparar Lotes
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
