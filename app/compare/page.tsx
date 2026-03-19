@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AppHeader from "@/components/shared/app-header";
 import {
   Card,
   CardContent,
@@ -20,7 +19,6 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   generateComparisonReportPdf,
@@ -323,7 +321,6 @@ const STATUS_STYLES = {
 } as const;
 
 export default function BatchComparisonPage() {
-  const { data: session } = useSession();
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [beforeRows, setBeforeRows] = useState<BatchCsvRow[]>([]);
@@ -515,8 +512,8 @@ export default function BatchComparisonPage() {
       const reportDate = new Date();
       const comparedAt = lastComparisonAt ?? reportDate;
       const metadata = mergeBatchFileMetadata(beforeFile, afterFile);
-      const userName = session?.user?.name?.trim() || "Usuário autenticado";
-      const userEmail = session?.user?.email?.trim() || "email não informado";
+      const userName = "Usuário local";
+      const userEmail = "email não informado";
       const reportRows: ComparisonReportRow[] = comparisonResults.map(
         (row) => ({
           model: row.model,
@@ -602,18 +599,8 @@ export default function BatchComparisonPage() {
   }, [comparisonResults]);
 
   return (
-    <div>
-      <AppHeader
-        appName="Xango API Testing"
-        logoSrc="/serasa-logo.svg"
-        menus={[
-          { label: "Consulta Única", href: "/unique" },
-          { label: "Processamento em Lote", href: "/batch" },
-          { label: "Comparação de Lotes", href: "/compare" },
-        ]}
-      />
-      <div className="bg-background px-6 py-5">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <div className="bg-background px-6 py-5">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
               Comparação de Lotes
@@ -934,7 +921,6 @@ export default function BatchComparisonPage() {
               </CardContent>
             </Card>
           )}
-        </div>
       </div>
     </div>
   );

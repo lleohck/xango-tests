@@ -322,6 +322,7 @@ export async function generateComparisonReportPdf(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
+  const confidentialHeaderHeight = 8;
   const contentWidth = pageWidth - margin * 2;
   const firstPageContentY = 64;
   const otherPageContentY = 10;
@@ -358,23 +359,35 @@ export async function generateComparisonReportPdf(
     },
   ];
 
+  const drawConfidentialHeader = () => {
+    doc.setFillColor(185, 28, 28);
+    doc.rect(0, 0, pageWidth, confidentialHeaderHeight, "F");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text("CONFIDENCIAL", pageWidth / 2, 5.5, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+  };
+
   const drawHeader = () => {
+    const headerOffsetY = confidentialHeaderHeight + 2;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text(
       "Relatório - Testes de API Serasa",
       pageWidth / 2,
-      17,
+      17 + headerOffsetY,
       {
         align: "center",
       },
     );
 
     if (logoDataUrl) {
-      doc.addImage(logoDataUrl, "PNG", margin, 10, 28, 10);
+      doc.addImage(logoDataUrl, "PNG", margin, 10 + headerOffsetY, 28, 10);
     }
 
-    const requesterTitleY = 13;
+    const requesterTitleY = 13 + headerOffsetY;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.text("Solicitante", pageWidth - margin, requesterTitleY, {
@@ -396,7 +409,7 @@ export async function generateComparisonReportPdf(
       { align: "right" },
     );
 
-    const detailsStartY = 30;
+    const detailsStartY = 30 + headerOffsetY;
     const leftColumnX = margin;
     const rightColumnX = pageWidth - margin;
     const maxColValueChars = 70;
@@ -507,6 +520,7 @@ export async function generateComparisonReportPdf(
     }
 
     if (isFirstPage) {
+      drawConfidentialHeader();
       drawHeader();
     }
 

@@ -6,7 +6,6 @@ import {
   type UniqueTestFormData,
 } from "@/components/unique/form";
 
-import AppHeader from "@/components/shared/app-header";
 import EnvironmentConfigForm, {
   EnvironmentConfig,
   environments,
@@ -94,19 +93,8 @@ export default function UniqueTest() {
   };
 
   return (
-    <div>
-      <AppHeader
-        appName="Xango API Testing"
-        logoSrc="/serasa-logo.svg"
-        menus={[
-          { label: "Consulta Única", href: "/unique" },
-          { label: "Processamento em Lote", href: "/batch" },
-          { label: "Comparação de Lotes", href: "/compare" },
-        ]}
-      />
-
-      <div className="bg-background px-6 py-5">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <div className="bg-background px-6 py-5">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
               Consulta Única de Modelos
@@ -138,7 +126,6 @@ export default function UniqueTest() {
               onClearHistory={() => setHistory([])}
             />
           </div>
-        </div>
       </div>
     </div>
   );
